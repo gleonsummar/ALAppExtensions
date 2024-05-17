@@ -1,3 +1,8 @@
+#if not CLEAN24
+namespace Microsoft.Utility.ImageAnalysis;
+
+using System.AI;
+using Microsoft.CRM.Contact;
 // ------------------------------------------------------------------------------------------------
 // Copyright (c) Microsoft Corporation. All rights reserved. 
 // Licensed under the MIT License. See License.txt in the project root for license information. 
@@ -5,6 +10,10 @@
 
 pageextension 2027 "Contact Pic Analyzer Ext" extends "Contact Card"
 {
+    ObsoleteReason = 'Image analyzer for contacts are being removed.';
+    ObsoleteState = Pending;
+    ObsoleteTag = '24.0';
+
     layout
     {
     }
@@ -15,12 +24,15 @@ pageextension 2027 "Contact Pic Analyzer Ext" extends "Contact Card"
 
             action(AnalyzePicture)
             {
-                Visible = true;
                 ApplicationArea = RelationshipMgmt;
                 Enabled = HasPictureToAnalyze;
                 Caption = 'Analyze Picture';
                 ToolTip = 'Analyze the picture attached to the contact to identify gender and age, and assign them to the contact.';
                 Image = Refresh;
+                Visible = false;
+                ObsoleteReason = 'Image analyzer for contacts are being removed.';
+                ObsoleteState = Pending;
+                ObsoleteTag = '24.0';
 
                 trigger OnAction()
                 var
@@ -55,3 +67,4 @@ pageextension 2027 "Contact Pic Analyzer Ext" extends "Contact Card"
         HasPictureToAnalyze: Boolean;
         ImageAnalysisForPersonsOnlyMsg: Label 'The contact you''re analyzing a picture of is a company, not a person. The contact must be a person.';
 }
+#endif

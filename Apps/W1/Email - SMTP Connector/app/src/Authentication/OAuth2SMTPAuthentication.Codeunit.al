@@ -3,6 +3,11 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 // ------------------------------------------------------------------------------------------------
 
+namespace System.Email;
+
+using System.Azure.Identity;
+using System.Text;
+
 codeunit 4516 "OAuth2 SMTP Authentication"
 {
     Access = Internal;
@@ -18,12 +23,12 @@ codeunit 4516 "OAuth2 SMTP Authentication"
     /// <param name="UserName">Authentication user name for SMTP client. Email address of the user who is attempting to authenticate.</param>
     /// <param name="AccessToken">Acquired access token for SMTP client.</param>
     [NonDebuggable]
-    internal procedure GetOAuth2Credentials(var UserName: Text; var AccessToken: Text)
+    internal procedure GetOAuth2Credentials(var UserName: Text; var AccessToken: SecretText)
     var
         AzureAdMgt: Codeunit "Azure AD Mgt.";
     begin
         AccessToken := AzureAdMgt.GetAccessToken(AzureADMgt.GetO365Resource(), AzureADMgt.GetO365ResourceName(), true);
-        if AccessToken = '' then
+        if AccessToken.IsEmpty() then
             Error(CouldNotAuthenticateErr);
         GetUserName(AccessToken, UserName);
     end;
@@ -71,7 +76,7 @@ codeunit 4516 "OAuth2 SMTP Authentication"
     /// <param name="UserName">The email address of the user for whom the access token got acquired.</param>
     [NonDebuggable]
     [TryFunction]
-    internal procedure GetUserName(AccessToken: Text; var UserName: Text)
+    internal procedure GetUserName(AccessToken: SecretText; var UserName: Text)
     var
         Base64Convert: Codeunit "Base64 Convert";
         AccessTokenSections: List of [Text];
@@ -81,7 +86,7 @@ codeunit 4516 "OAuth2 SMTP Authentication"
         JToken: JsonToken;
     begin
         // Access token consists of a header, body and signature
-        AccessTokenSections := AccessToken.split('.');
+        AccessTokenSections := AccessToken.Unwrap().split('.');
 
         // Get the encoded body
         AccessTokenBodyEncoded := AccessTokenSections.Get(2);
@@ -102,7 +107,7 @@ codeunit 4516 "OAuth2 SMTP Authentication"
     var
         SMTPConnectorImpl: Codeunit "SMTP Connector Impl.";
         UserName: Text;
-        AccessToken: Text;
+        AccessToken: SecretText;
     begin
         if Handled then
             exit;

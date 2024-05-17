@@ -1,3 +1,16 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Purchases.Document;
+
+using Microsoft.Finance.GST.Base;
+using Microsoft.Finance.GST.Purchase;
+using Microsoft.Finance.GST.Subcontracting;
+using Microsoft.Manufacturing.Document;
+using Microsoft.Purchases.History;
+
+
 tableextension 18083 "GST Purchase Line Ext" extends "Purchase Line"
 {
     fields
@@ -273,6 +286,17 @@ tableextension 18083 "GST Purchase Line Ext" extends "Purchase Line"
             Caption = 'Subcon. Receiving';
             DataClassification = CustomerContent;
         }
+        field(18136; FOC; Boolean)
+        {
+            Caption = 'FOC';
+            DataClassification = CustomerContent;
+        }
+        field(18137; "GST Vendor Type"; Enum "GST Vendor Type")
+        {
+            Caption = 'GST Vendor Type';
+            Editable = false;
+            DataClassification = CustomerContent;
+        }
     }
 
     local procedure UpdateSubConOrderLines()
@@ -303,7 +327,7 @@ tableextension 18083 "GST Purchase Line Ext" extends "Purchase Line"
         SubOrderCompListVend.SetRange("Document Line No.", "Line No.");
         if SubOrderCompListVend.FindSet() then
             repeat
-                SubOrderCompListVend.Validate("Qty. to Consume", "Qty. to Receive" * SubOrderCompListVend."Quantity per");
+                SubOrderCompListVend.Validate("Qty. to Consume", "Qty. to Receive" * SubOrderCompListVend."Quantity per" * SubOrderCompListVend."Qty. per Unit of Measure");
                 SubOrderCompListVend.Validate("Qty. to Return (C.E.)", "Qty. to Reject (C.E.)" * SubOrderCompListVend."Quantity per");
                 SubOrderCompListVend.Validate("Qty. To Return (V.E.)", (SubOrderCompListVend."Quantity per" * "Qty. to Reject (V.E.)"));
                 SubOrderCompListVend.Validate("Posting Date", "Posting Date");

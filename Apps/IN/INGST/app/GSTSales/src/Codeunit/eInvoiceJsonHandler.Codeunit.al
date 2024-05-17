@@ -1,3 +1,25 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.GST.Sales;
+
+using Microsoft.Bank.BankAccount;
+using Microsoft.CRM.Contact;
+using Microsoft.Finance.Currency;
+using Microsoft.Finance.GST.Base;
+using Microsoft.Finance.TaxBase;
+using Microsoft.Foundation.Company;
+using Microsoft.Foundation.Shipping;
+using Microsoft.Inventory.Location;
+using Microsoft.Sales.Customer;
+using Microsoft.Sales.History;
+using Microsoft.Sales.Receivables;
+using System.Security.Encryption;
+using System.Text;
+using System.Utilities;
+using Microsoft.QRGeneration;
+
 codeunit 18147 "e-Invoice Json Handler"
 {
     Permissions = tabledata "Sales Invoice Header" = rm,
@@ -1197,7 +1219,7 @@ codeunit 18147 "e-Invoice Json Handler"
                           SalesInvoiceLine."HSN/SAC Code",
                           GstRate, SalesInvoiceLine.Quantity,
                           CopyStr(SalesInvoiceLine."Unit of Measure Code", 1, 3),
-                          SalesInvoiceLine."Unit Price",
+                          Round(SalesInvoiceLine."Unit Price", 0.001, '='),
                           SalesInvoiceLine."Line Amount" + SalesInvoiceLine."Line Discount Amount",
                           SalesInvoiceLine."Line Discount Amount", 0,
                           AssessableAmount, CGSTValue, SGSTValue, IGSTValue, CessRate, CesNonAdval,
@@ -1252,7 +1274,7 @@ codeunit 18147 "e-Invoice Json Handler"
                           SalesCrMemoLine."HSN/SAC Code", GstRate,
                           SalesCrMemoLine.Quantity,
                           CopyStr(SalesCrMemoLine."Unit of Measure Code", 1, 3),
-                          SalesCrMemoLine."Unit Price",
+                          Round(SalesCrMemoLine."Unit Price", 0.001, '='),
                           SalesCrMemoLine."Line Amount" + SalesCrMemoLine."Line Discount Amount",
                           SalesCrMemoLine."Line Discount Amount", 0,
                           AssessableAmount, CGSTValue, SGSTValue, IGSTValue, CessRate, CesNonAdval,

@@ -1,3 +1,11 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Bank.Payment;
+
+using Microsoft.Bank.BankAccount;
+
 pageextension 20103 "AMC Bank Bank Account Card" extends "Bank Account Card"
 {
     ContextSensitiveHelpPage = '304';
@@ -31,7 +39,6 @@ pageextension 20103 "AMC Bank Bank Account Card" extends "Bank Account Card"
         IsAMCFundamentalsEnabled: Boolean;
 
     trigger OnOpenPage()
-    var
     begin
         IsAMCFundamentalsEnabled := AMCBankingMgt.IsAMCFundamentalsEnabled();
     end;

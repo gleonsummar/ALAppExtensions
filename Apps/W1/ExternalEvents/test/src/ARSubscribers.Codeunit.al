@@ -22,7 +22,7 @@ codeunit 139640 "AR Subscribers"
 
     procedure GetOnAfterFinalizePostingSalesInvoiceCalled(): Boolean
     begin
-        Exit(OnAfterFinalizePostingSalesInvoiceCalled);
+        exit(OnAfterFinalizePostingSalesInvoiceCalled);
     end;
 
     procedure ClearOnAfterFinalizePostingSalesInvoiceCalled()
@@ -31,13 +31,14 @@ codeunit 139640 "AR Subscribers"
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post Line", 'OnAfterCustLedgEntryInsert', '', true, true)]
-    local procedure OnAfterCustLedgEntryInsert(var CustLedgerEntry: Record "Cust. Ledger Entry"; GenJournalLine: Record "Gen. Journal Line"; DtldLedgEntryInserted: Boolean)
+    local procedure OnAfterCustLedgEntryInsert(var CustLedgerEntry: Record "Cust. Ledger Entry"; GenJournalLine: Record "Gen. Journal Line"; DtldLedgEntryInserted: Boolean; PreviewMode: Boolean)
     begin
         OnAfterCustLedgEntryInsertCalled := true;
     end;
-        procedure GetOnAfterCustLedgEntryInsertCalled(): Boolean
+
+    procedure GetOnAfterCustLedgEntryInsertCalled(): Boolean
     begin
-        Exit(OnAfterCustLedgEntryInsertCalled);
+        exit(OnAfterCustLedgEntryInsertCalled);
     end;
 
     procedure ClearOnAfterCustLedgEntryInsertCalled()

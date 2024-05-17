@@ -1,4 +1,28 @@
-﻿report 4810 "Intrastat Report Get Lines"
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Inventory.Intrastat;
+
+using Microsoft.Finance.Currency;
+using Microsoft.Finance.GeneralLedger.Setup;
+using Microsoft.Finance.VAT.Setup;
+using Microsoft.FixedAssets.FixedAsset;
+using Microsoft.FixedAssets.Ledger;
+using Microsoft.Foundation.Address;
+using Microsoft.Foundation.Company;
+using Microsoft.Foundation.UOM;
+using Microsoft.Inventory.Item;
+using Microsoft.Inventory.Ledger;
+using Microsoft.Inventory.Location;
+using Microsoft.Projects.Project.Job;
+using Microsoft.Projects.Project.Ledger;
+using Microsoft.Purchases.History;
+using Microsoft.Sales.Customer;
+using Microsoft.Sales.History;
+using Microsoft.Service.History;
+
+report 4810 "Intrastat Report Get Lines"
 {
     Caption = 'Intrastat Report Get Lines';
     ProcessingOnly = true;
@@ -154,8 +178,7 @@
 
         dataitem("FA Ledger Entry"; "FA Ledger Entry")
         {
-            DataItemTableView = sorting("FA No.", "Depreciation Book Code", "FA Posting Category", "FA Posting Type", "FA Posting Date", "Part of Book Value", "Reclassification Entry") where("FA Posting Type" = filter("Proceeds on Disposal" | "Acquisition Cost"), "FA Posting Category" = const(" "));
-
+            DataItemTableView = sorting("FA No.", "Depreciation Book Code", "FA Posting Category", "FA Posting Type", "FA Posting Date", "Part of Book Value", "Reclassification Entry");
             trigger OnAfterGetRecord()
             var
                 CountryCode: Code[10];
@@ -183,17 +206,33 @@
             end;
 
             trigger OnPreDataItem()
+            var
+                IsHandled: Boolean;
             begin
-                SetRange("FA Posting Date", StartDate, EndDate);
+                IsHandled := false;
+                OnBeforeFilterFALedgerEntry(IntrastatReportHeader, "FA Ledger Entry", StartDate, EndDate, IsHandled);
+                if not IsHandled then begin
+                    SetRange("FA Posting Date", StartDate, EndDate);
+                    SetFilter("FA Posting Type", '%1|%2', "FA Posting Type"::"Proceeds on Disposal", "FA Posting Type"::"Acquisition Cost");
+                    SetFilter("Document Type", '%1|%2', "Document Type"::Invoice, "Document Type"::"Credit Memo");
+                    SetRange("FA Posting Category", "FA Posting Category"::" ");
+                end;
+
                 IntrastatReportLine2.SetCurrentKey("Source Type", "Source Entry No.");
                 IntrastatReportLine2.SetRange("Source Type", IntrastatReportLine2."Source Type"::"FA Entry");
             end;
         }
+#if not CLEAN24
         dataitem("Value Entry"; "Value Entry")
         {
             DataItemTableView = sorting("Entry No.");
+            ObsoleteReason = 'Generates false quantity in a period where an item is not moved';
+            ObsoleteState = Pending;
+            ObsoleteTag = '24.0';
 
             trigger OnAfterGetRecord()
+            var
+                IsSkipped: Boolean;
             begin
                 if ShowItemCharges then begin
                     IntrastatReportLine2.SetRange("Source Entry No.", "Item Ledger Entry No.");
@@ -206,6 +245,10 @@
                         if Country.Get(IntrastatReportMgt.GetIntrastatBaseCountryCode("Item Ledger Entry")) and (Country."EU Country/Region Code" = '') then
                             CurrReport.Skip();
                         if not HasCrossedBorder("Item Ledger Entry") then
+                            CurrReport.Skip();
+                        IsSkipped := false;
+                        OnAfterSkipValueEntry(StartDate, EndDate, "Value Entry", "Item Ledger Entry", IsSkipped);
+                        if IsSkipped then
                             CurrReport.Skip();
                         InsertValueEntryLine();
                     end;
@@ -225,6 +268,7 @@
                 OnAfterValueEntryOnPreDataItem(IntrastatReportHeader, "Value Entry", "Item Ledger Entry");
             end;
         }
+#endif        
     }
 
     requestpage
@@ -290,12 +334,18 @@
                         Caption = 'Skip Zero Amounts';
                         ToolTip = 'Specifies that item ledger entries without amounts will not be included in the batch job.';
                     }
+#if not CLEAN24
                     field(ShowingItemCharges; ShowItemCharges)
                     {
                         ApplicationArea = BasicEU, BasicCH, BasicNO;
+                        ObsoleteReason = 'Generates false quantity in a period where an item is not moved';
+                        ObsoleteState = Pending;
+                        ObsoleteTag = '24.0';
+                        Visible = false;
                         Caption = 'Show Item Charge Entries';
                         ToolTip = 'Specifies if you want to show direct costs that your company has assigned and posted as item charges.';
                     }
+#endif
                     field(SkipNotInvoiced; SkipNotInvoicedEntries)
                     {
                         ApplicationArea = BasicEU, BasicCH, BasicNO;
@@ -305,7 +355,6 @@
                 }
             }
         }
-
         trigger OnOpenPage()
         begin
             StartDate := IntrastatReportHeader.GetStatisticsStartDate();
@@ -344,6 +393,7 @@
             AddCurrencyFactor :=
                 CurrExchRate.ExchangeRate(EndDate, GLSetup."Additional Reporting Currency");
         end;
+        AmtRoundingDirection := GetAmtRoundingDirection();
     end;
 
     trigger OnPostReport()
@@ -383,6 +433,7 @@
         PricesIncludingVATErr: Label 'Prices including VAT cannot be calculated when %1 is %2.', Comment = '%1 - VAT Calculation Type caption, %2 - "VAT Calculation Type"';
         LinesDeletionConfirmationQst: Label 'The existing lines for Intrastat report %1 will be deleted. Do you want to continue?', Comment = '%1 - Intrastat Report number';
         NoLinesMsg: Label 'No lines are suggested for the period. Please check %1.', Comment = '%1 - Intrastat Report Setup caption';
+        DefaultRoundingDirectionTok: Label '=', Locked = true;
         CostRegulationEnable: Boolean;
 
     protected var
@@ -391,8 +442,12 @@
         IndirectCostPctReq: Decimal;
         SkipRecalcZeroAmounts: Boolean;
         SkipZeroAmounts: Boolean;
+#if not CLEAN24
+        [Obsolete('Generates false quantity in a period where an item is not moved', '24.0')]
         ShowItemCharges: Boolean;
+#endif
         SkipNotInvoicedEntries: Boolean;
+        AmtRoundingDirection: Text[1];
 
 
     procedure SetIntrastatReportHeader(NewIntrastatReportHeader: Record "Intrastat Report Header")
@@ -428,9 +483,9 @@
             IntrastatReportLine."Indirect Cost" := Abs(TotalAmt + TotalIndirectCost) - Abs(TotalAmt);
 
         if IntrastatReportHeader."Amounts in Add. Currency" then
-            IntrastatReportLine.Amount := Round(Abs(TotalAmt), AddCurrency."Amount Rounding Precision")
+            IntrastatReportLine.Amount := Round(Abs(TotalAmt), AddCurrency."Amount Rounding Precision", AmtRoundingDirection)
         else
-            IntrastatReportLine.Amount := Round(Abs(TotalAmt), GLSetup."Amount Rounding Precision");
+            IntrastatReportLine.Amount := Round(Abs(TotalAmt), GLSetup."Amount Rounding Precision", AmtRoundingDirection);
 
         IntrastatReportLine."Currency Code" := IntrastatReportMgt.GetOriginalCurrency("Item Ledger Entry");
         if IntrastatReportLine."Currency Code" <> '' then begin
@@ -448,7 +503,8 @@
                                 GLSetup."Additional Reporting Currency",
                                 IntrastatReportLine."Currency Code",
                                 TotalAmt)),
-                        AmtRoundingPrecision)
+                        AmtRoundingPrecision,
+                        AmtRoundingDirection)
             else
                 IntrastatReportLine."Source Currency Amount" :=
                     Round(
@@ -460,7 +516,8 @@
                                 CurrExchRate.ExchangeRate(
                                     IntrastatReportLine.Date,
                                     IntrastatReportLine."Currency Code"))),
-                        AmtRoundingPrecision)
+                        AmtRoundingPrecision,
+                        AmtRoundingDirection)
         end else
             IntrastatReportLine."Source Currency Amount" := IntrastatReportLine.Amount;
 
@@ -515,12 +572,14 @@
             IntrastatReportLine.Amount :=
                 Round(
                     Abs("Job Ledger Entry"."Add.-Currency Line Amount"),
-                    AddCurrency."Amount Rounding Precision")
+                    AddCurrency."Amount Rounding Precision",
+                    AmtRoundingDirection)
         else
             IntrastatReportLine.Amount :=
                 Round(
                     Abs("Job Ledger Entry"."Line Amount (LCY)"),
-                    GLSetup."Amount Rounding Precision");
+                    GLSetup."Amount Rounding Precision",
+                    AmtRoundingDirection);
 
         IntrastatReportLine."Currency Code" := "Job Ledger Entry"."Currency Code";
 
@@ -532,7 +591,8 @@
         IntrastatReportLine."Source Currency Amount" :=
             Round(
                 Abs("Job Ledger Entry"."Line Amount"),
-                AmtRoundingPrecision);
+                AmtRoundingPrecision,
+                AmtRoundingDirection);
 
         IntrastatReportLine."Source Entry No." := "Job Ledger Entry"."Entry No.";
         IntrastatReportLine."Document No." := "Job Ledger Entry"."Document No.";
@@ -574,17 +634,7 @@
         IntrastatReportLine.Init();
         IntrastatReportLine."Intrastat No." := IntrastatReportHeader."No.";
         IntrastatReportLine."Line No." += 10000;
-
-        if "FA Ledger Entry"."FA Posting Type" = "FA Ledger Entry"."FA Posting Type"::"Acquisition Cost" then
-            if "FA Ledger Entry"."Document Type" = "FA Ledger Entry"."Document Type"::Invoice then
-                IntrastatReportLine.Type := IntrastatReportLine.Type::Receipt
-            else
-                IntrastatReportLine.Type := IntrastatReportLine.Type::Shipment
-        else    //  "FA Posting Type"::"Proceeds on Disposal"
-            if "FA Ledger Entry"."Document Type" = "FA Ledger Entry"."Document Type"::Invoice then
-                IntrastatReportLine.Type := IntrastatReportLine.Type::Shipment
-            else
-                IntrastatReportLine.Type := IntrastatReportLine.Type::Receipt;
+        IntrastatReportLine.Type := GetIntrastatReportLineType("FA Ledger Entry");
 
         if (IntrastatReportLine.Type = IntrastatReportLine.Type::Receipt) and (not IntrastatReportSetup."Report Receipts") or
             (IntrastatReportLine.Type = IntrastatReportLine.Type::Shipment) and (not IntrastatReportSetup."Report Shipments")
@@ -652,12 +702,14 @@
                         CurrExchRate.ExchangeAmtLCYToFCY(
                             IntrastatReportLine.Date, GLSetup."Additional Reporting Currency",
                             "FA Ledger Entry"."Amount (LCY)", AddCurrencyFactor)),
-                    AddCurrency."Amount Rounding Precision")
+                    AddCurrency."Amount Rounding Precision",
+                    AmtRoundingDirection)
         else
             IntrastatReportLine.Amount :=
                 Round(
                     Abs("FA Ledger Entry"."Amount (LCY)"),
-                    GLSetup."Amount Rounding Precision");
+                    GLSetup."Amount Rounding Precision",
+                    AmtRoundingDirection);
 
         IntrastatReportLine."Currency Code" := IntrastatReportMgt.GetOriginalCurrency("FA Ledger Entry");
         AmtRoundingPrecision := GLSetup."Amount Rounding Precision";
@@ -668,7 +720,8 @@
         IntrastatReportLine."Source Currency Amount" :=
             Round(
                 Abs("FA Ledger Entry".Amount),
-                AmtRoundingPrecision);
+                AmtRoundingPrecision,
+                AmtRoundingDirection);
 
         IntrastatReportLine."Source Entry No." := "FA Ledger Entry"."Entry No.";
 
@@ -690,6 +743,21 @@
 
         IntrastatReportLine."Record ID Filter" := Format(IntrastatReportLine.RecordId);
         IntrastatReportLine.Modify();
+    end;
+
+    local procedure GetIntrastatReportLineType(FALedgerEntry: Record "FA Ledger Entry") IntrastatReportLineType: Enum "Intrastat Report Line Type"
+    begin
+        if FALedgerEntry."FA Posting Type" = FALedgerEntry."FA Posting Type"::"Acquisition Cost" then
+            if FALedgerEntry."Document Type" = FALedgerEntry."Document Type"::Invoice then
+                IntrastatReportLineType := Enum::"Intrastat Report Line Type"::Receipt
+            else
+                IntrastatReportLineType := Enum::"Intrastat Report Line Type"::Shipment
+        else    //  "FA Posting Type"::"Proceeds on Disposal"
+            if FALedgerEntry."Document Type" = FALedgerEntry."Document Type"::Invoice then
+                IntrastatReportLineType := Enum::"Intrastat Report Line Type"::Shipment
+            else
+                IntrastatReportLineType := Enum::"Intrastat Report Line Type"::Receipt;
+        OnAfterGetIntrastatReportLineType(FALedgerEntry, IntrastatReportLineType);
     end;
 
     local procedure GetGLSetup()
@@ -772,6 +840,7 @@
         if IsHandled then
             exit(Result);
 
+        Clear(Country);
         if (Country.Get(IntrastatReportMgt.GetIntrastatBaseCountryCode(ItemLedgEntry)) and (Country."Intrastat Code" <> '')) or (Country.Code = '') then
             case true of
                 ItemLedgEntry."Drop Shipment":
@@ -780,6 +849,9 @@
                         OnBeforeCheckDropShipment(IntrastatReportHeader, ItemLedgEntry, Country, Result, IsHandled);
                         if IsHandled then
                             exit(Result);
+
+                        if not IntrastatReportSetup."Include Drop Shipment" then
+                            exit(false);
 
                         if Country.Code in [CompanyInfo."Country/Region Code", ''] then
                             exit(false);
@@ -801,11 +873,9 @@
                         case true of
                             ((ItemLedgEntry."Order Type" <> ItemLedgEntry."Order Type"::Transfer) or (ItemLedgEntry."Order No." = '')),
                             ItemLedgEntry."Document Type" = ItemLedgEntry."Document Type"::"Direct Transfer":
-                                begin
-                                    Location.Get(ItemLedgEntry."Location Code");
+                                if Location.Get(ItemLedgEntry."Location Code") then
                                     if (Location."Country/Region Code" <> '') and (Location."Country/Region Code" <> CompanyInfo."Country/Region Code") then
                                         exit(false);
-                                end;
                             ItemLedgEntry."Document Type" = ItemLedgEntry."Document Type"::"Transfer Receipt":
                                 begin
                                     ItemLedgEntry2.SetCurrentKey("Order Type", "Order No.");
@@ -853,6 +923,8 @@
         exit(true);
     end;
 
+#if not CLEAN24
+    [Obsolete('Generates false quantity in a period where an item is not moved', '24.0')]
     local procedure InsertValueEntryLine()
     var
         Location: Record Location;
@@ -873,7 +945,7 @@
         IntrastatReportLine.Area := "Item Ledger Entry".Area;
         IntrastatReportLine."Transaction Specification" := "Item Ledger Entry"."Transaction Specification";
         IntrastatReportLine."Location Code" := "Item Ledger Entry"."Location Code";
-        IntrastatReportLine.Amount := Round(Abs("Value Entry"."Sales Amount (Actual)"), 1);
+        IntrastatReportLine.Amount := Round(Abs("Value Entry"."Sales Amount (Actual)"), 1, AmtRoundingDirection);
 
         SetJnlLineType(IntrastatReportLine, "Value Entry"."Document Type");
 
@@ -900,7 +972,7 @@
         IntrastatReportLine."Record ID Filter" := Format(IntrastatReportLine.RecordId);
         IntrastatReportLine.Modify();
     end;
-
+#endif
     local procedure IsService(ItemLedgEntry: Record "Item Ledger Entry"): Boolean
     var
         SalesShipmentLine: Record "Sales Shipment Line";
@@ -961,7 +1033,7 @@
         TotalCostAmt: Decimal;
         TotalAmtExpected: Decimal;
         TotalCostAmtExpected: Decimal;
-        IsHandled: Boolean;
+        IsHandled, IsSkipped : Boolean;
     begin
         TotalInvoicedQty := 0;
         TotalAmt := 0;
@@ -983,9 +1055,9 @@
         ValueEntry.SetRange("Item Ledger Entry No.", ItemLedgerEntry."Entry No.");
         if ValueEntry.FindSet() then
             repeat
-                if not ((ValueEntry."Item Charge No." <> '') and
-                        ((ValueEntry."Posting Date" > EndDate) or (ValueEntry."Posting Date" < StartDate)))
-                then begin
+                IsSkipped := false;
+                OnAfterSkipValueEntry(StartDate, EndDate, ValueEntry, ItemLedgerEntry, IsSkipped);
+                if not IsSkipped then begin
                     TotalInvoicedQty += ValueEntry."Invoiced Quantity";
                     if not IntrastatReportHeader."Amounts in Add. Currency" then begin
                         if ValueEntry."Item Charge No." = '' then begin
@@ -1097,6 +1169,12 @@
             TotalIndirectCost, TotalIndirectCostAmt, TotalIndirectCostExpected, TotalIndirectCostAmtExpected);
     end;
 
+    local procedure GetAmtRoundingDirection() Direction: Text[1]
+    begin
+        Direction := DefaultRoundingDirectionTok;
+        OnAfterGetAmtRoundingDirection(Direction);
+    end;
+
     local procedure IsJobService(JobLedgEntry: Record "Job Ledger Entry"): Boolean
     var
         Job: Record Job;
@@ -1157,6 +1235,7 @@
             end;
     end;
 
+#if not CLEAN24
     local procedure SetJnlLineType(var IntrastatReportLine: Record "Intrastat Report Line"; ValueEntryDocumentType: Enum "Item Ledger Document Type")
     begin
         if IntrastatReportLine.Quantity < 0 then begin
@@ -1170,6 +1249,7 @@
             else
                 IntrastatReportLine.Type := IntrastatReportLine.Type::Receipt;
     end;
+#endif
 
     [IntegrationEvent(true, false)]
     local procedure OnAfterCheckItemLedgerEntry(IntrastatReportHeader: Record "Intrastat Report Header"; ItemLedgerEntry: Record "Item Ledger Entry"; var CurrReportSkip: Boolean)
@@ -1213,14 +1293,22 @@
     end;
 
     [IntegrationEvent(true, false)]
-    local procedure OnAfterItemLedgerEntryOnPreDataItem(var ItemLedgerEntry: Record "Item Ledger Entry")
+    local procedure OnBeforeFilterFALedgerEntry(IntrastatReportHeader: Record "Intrastat Report Header"; var FALedgerEntry: Record "FA Ledger Entry"; StartDate: Date; EndDate: Date; var IsHandled: Boolean);
     begin
     end;
 
     [IntegrationEvent(true, false)]
+    local procedure OnAfterItemLedgerEntryOnPreDataItem(var ItemLedgerEntry: Record "Item Ledger Entry")
+    begin
+    end;
+
+#if not CLEAN24
+    [IntegrationEvent(true, false)]
+    [Obsolete('Generates false quantity in a period where an item is not moved', '24.0')]
     local procedure OnAfterValueEntryOnPreDataItem(IntrastatReportHeader: Record "Intrastat Report Header"; var ValueEntry: Record "Value Entry"; var ItemLedgerEntry: Record "Item Ledger Entry")
     begin
     end;
+#endif
 
     [IntegrationEvent(false, false)]
     local procedure OnBeforeHasCrossedBorder(ItemLedgerEntry: Record "Item Ledger Entry"; var Result: Boolean; var IsHandled: Boolean)
@@ -1262,11 +1350,13 @@
     begin
     end;
 
+#if not CLEAN24
     [IntegrationEvent(false, false)]
+    [Obsolete('Generates false quantity in a period where an item is not moved', '24.0')]
     local procedure OnBeforeInsertValueEntryLine(var IntrastatReportLine: Record "Intrastat Report Line"; ItemLedgerEntry: Record "Item Ledger Entry"; var IsHandled: Boolean)
     begin
     end;
-
+#endif
     [IntegrationEvent(false, false)]
     local procedure OnCalculateTotalsOnBeforeSumTotals(var ItemLedgerEntry: Record "Item Ledger Entry"; IntrastatReportHeader: Record "Intrastat Report Header"; var TotalAmt: Decimal; var TotalCostAmt: Decimal)
     begin
@@ -1279,6 +1369,21 @@
 
     [IntegrationEvent(false, false)]
     local procedure OnAfterInitRequestPage(var IntrastatReportHeader: Record "Intrastat Report Header"; var AmountInclItemCharges: Boolean; var StartDate: Date; var EndDate: Date; var CostRegulationEnable: Boolean);
+    begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnAfterSkipValueEntry(StartDate: Date; EndDate: Date; ValueEntry: Record "Value Entry"; ItemLedgerEntry: Record "Item Ledger Entry"; var IsSkipped: Boolean)
+    begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnAfterGetAmtRoundingDirection(var Direction: Text[1]);
+    begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnAfterGetIntrastatReportLineType(FALedgerEntry: Record "FA Ledger Entry"; var IntrastatReportLineType: Enum "Intrastat Report Line Type")
     begin
     end;
 }

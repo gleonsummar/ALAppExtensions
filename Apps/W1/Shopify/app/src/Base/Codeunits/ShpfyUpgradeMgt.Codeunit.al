@@ -1,3 +1,12 @@
+namespace Microsoft.Integration.Shopify;
+
+using System.IO;
+using System.Reflection;
+using Microsoft.Sales.Customer;
+using Microsoft.Finance.Dimension;
+using Microsoft.Inventory.Item;
+using System.Upgrade;
+
 /// <summary>
 /// Codeunit Shpfy Upgrade Mgt. (ID 30106).
 /// </summary>
@@ -13,27 +22,17 @@ codeunit 30106 "Shpfy Upgrade Mgt."
 
     trigger OnUpgradePerCompany()
     begin
-        SetShpfyStockCalculation();
-#if not CLEAN21
-        MoveShpfyRegisteredStore();
-#endif
         SetAllowOutgoingRequests();
-#if CLEAN22
-        MoveTemplatesData();
-#endif
         PriceCalculationUpgrade();
-    end;
-
-#if CLEAN22
-    local procedure MoveTemplatesData()
-    var
-        UpgradeTag: Codeunit "Upgrade Tag";
-    begin
-        if UpgradeTag.HasUpgradeTag(GetMoveTemplatesDataTag()) then
-            exit;
-        UpgradeTemplatesData();
-    end;
+        LoggingModeUpgrade();
+        LocationUpgrade();
+        SyncPricesWithProductsUpgrade();
+        SendShippingConfirmationUpgrade();
+#if CLEAN24
+        OrderAttributeValueUpgrade();
 #endif
+        CreditMemoCanBeCreatedUpgrade();
+    end;
 
     internal procedure UpgradeTemplatesData()
     var
@@ -103,7 +102,7 @@ codeunit 30106 "Shpfy Upgrade Mgt."
                         if Evaluate(DateFormulaDefaultValue, ConfigTemplateLine."Default Value") then
                             FieldRef.Value := DateFormulaDefaultValue;
                     Field.Type::Time:
-                        if Evaluate(TimeDefaultValue, ConfigTemplateLine."Default Value") then 
+                        if Evaluate(TimeDefaultValue, ConfigTemplateLine."Default Value") then
                             FieldRef.Value := TimeDefaultValue;
                     else
                         FieldRef.Value := ConfigTemplateLine."Default Value";
@@ -207,23 +206,6 @@ codeunit 30106 "Shpfy Upgrade Mgt."
         exit(TemplateCode);
     end;
 
-#if not CLEAN21
-
-    local procedure MoveShpfyRegisteredStore()
-    var
-        RegisteredStore: Record "Shpfy Registered Store";
-        RegisteredStoreNew: Record "Shpfy Registered Store New";
-    begin
-        if RegisteredStoreNew.IsEmpty then
-            if RegisteredStore.FindSet() then
-                repeat
-                    RegisteredStoreNew.TransferFields(RegisteredStore, true);
-                    RegisteredStoreNew.SystemId := RegisteredStore.SystemId;
-                    RegisteredStoreNew.Insert(true, true);
-                until RegisteredStore.next() = 0;
-    end;
-#endif
-
     local procedure SetAllowOutgoingRequests()
     var
         Shop: Record "Shpfy Shop";
@@ -252,31 +234,67 @@ codeunit 30106 "Shpfy Upgrade Mgt."
         if UpgradeTag.HasUpgradeTag(GetPriceCalculationUpgradeTag()) then
             exit;
 
-        if Shop.FindSet(true, false) then
+        Shop.SetFilter("Customer Template Code", '<>%1', '');
+        Shop.SetRange("Customer Posting Group", '');
+        if Shop.FindSet(true) then
             repeat
-#if not CLEAN22
-                Shop.CopyPriceCalculationFieldsFromCustomerTemplate(Shop."Customer Template Code");
-#else
                 Shop.CopyPriceCalculationFieldsFromCustomerTempl(Shop."Customer Templ. Code");
-#endif
                 Shop.Modify();
             until Shop.Next() = 0;
 
         UpgradeTag.SetUpgradeTag(GetPriceCalculationUpgradeTag());
     end;
 
-    internal procedure SetShpfyStockCalculation()
+    local procedure LoggingModeUpgrade()
+    var
+        Shop: Record "Shpfy Shop";
+        UpgradeTag: Codeunit "Upgrade Tag";
+        ShopDataTransfer: DataTransfer;
+    begin
+        if UpgradeTag.HasUpgradeTag(GetLoggingModeUpgradeTag()) then
+            exit;
+
+        ShopDataTransfer.SetTables(Database::"Shpfy Shop", Database::"Shpfy Shop");
+        ShopDataTransfer.AddSourceFilter(Shop.FieldNo("Log Enabled"), '=%1', true);
+        ShopDataTransfer.AddConstantValue("Shpfy Logging Mode"::All, Shop.FieldNo("Logging Mode"));
+        ShopDataTransfer.UpdateAuditFields := false;
+        ShopDataTransfer.CopyFields();
+
+        UpgradeTag.SetUpgradeTag(GetLoggingModeUpgradeTag());
+    end;
+
+    local procedure LocationUpgrade()
     var
         ShopLocation: Record "Shpfy Shop Location";
+        UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if ShopLocation.FindSet() then
+        if UpgradeTag.HasUpgradeTag(GetLocationUpgradeTag()) then
+            exit;
+
+        if ShopLocation.FindSet(true) then
             repeat
-                if ShopLocation.Disabled then begin
-                    ShopLocation.Disabled := false;
-                    ShopLocation."Stock Calculation" := ShopLocation."Stock Calculation"::Disabled;
-                    ShopLocation.Modify();
-                end;
+                ShopLocation."Default Product Location" := true;
+                ShopLocation.Modify();
             until ShopLocation.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag(GetLocationUpgradeTag());
+    end;
+
+    local procedure SyncPricesWithProductsUpgrade()
+    var
+        Shop: Record "Shpfy Shop";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(GetSyncPricesWithProductsUpgradeTag()) then
+            exit;
+
+        if Shop.FindSet(true) then
+            repeat
+                Shop."Sync Prices" := true;
+                Shop.Modify();
+            until Shop.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag(GetSyncPricesWithProductsUpgradeTag());
     end;
 
     internal procedure SetAutoReleaseSalesOrder()
@@ -288,6 +306,86 @@ codeunit 30106 "Shpfy Upgrade Mgt."
             exit;
         ShpfyShop.ModifyAll("Auto Release Sales Orders", true);
         UpgradeTag.SetUpgradeTag(GetAutoReleaseSalesOrderTag());
+    end;
+
+    local procedure SendShippingConfirmationUpgrade()
+    var
+        Shop: Record "Shpfy Shop";
+        UpgradeTag: Codeunit "Upgrade Tag";
+    begin
+        if UpgradeTag.HasUpgradeTag(GetSendShippingConfirmationUpgradeTag()) then
+            exit;
+
+        if Shop.FindSet(true) then
+            repeat
+                Shop."Send Shipping Confirmation" := true;
+                Shop.Modify();
+            until Shop.Next() = 0;
+
+        UpgradeTag.SetUpgradeTag(GetSendShippingConfirmationUpgradeTag());
+    end;
+
+#if CLEAN24
+    local procedure OrderAttributeValueUpgrade()
+    var
+        OrderAttribute: Record "Shpfy Order Attribute";
+        UpgradeTag: Codeunit "Upgrade Tag";
+        OrderAttributeDataTransfer: DataTransfer;
+    begin
+        if UpgradeTag.HasUpgradeTag(GetOrderAttributeValueUpgradeTag()) then
+            exit;
+
+        if not OrderAttribute.IsEmpty() then begin
+            OrderAttributeDataTransfer.SetTables(Database::"Shpfy Order Attribute", Database::"Shpfy Order Attribute");
+            OrderAttributeDataTransfer.AddFieldValue(OrderAttribute.FieldNo(Value), OrderAttribute.FieldNo("Attribute Value"));
+            OrderAttributeDataTransfer.UpdateAuditFields := false;
+            OrderAttributeDataTransfer.CopyFields();
+        end;
+
+        UpgradeTag.SetUpgradeTag(GetOrderAttributeValueUpgradeTag());
+    end;
+#endif
+
+    local procedure CreditMemoCanBeCreatedUpgrade()
+    var
+        RefundHeader: Record "Shpfy Refund Header";
+        UpgradeTag: Codeunit "Upgrade Tag";
+        HeadersInFilter, MaxHeadersInFilter : Integer;
+        RefundIdFilter: Text;
+    begin
+        if UpgradeTag.HasUpgradeTag(GetCreditMemoCanBeCreatedUpgradeTag()) then
+            exit;
+
+        MaxHeadersInFilter := 100;
+        RefundHeader.SetFilter("Total Refunded Amount", '>%1', 0);
+        if RefundHeader.FindSet() then
+            repeat
+                if RefundIdFilter <> '' then
+                    RefundIdFilter += '|';
+                RefundIdFilter += Format(RefundHeader."Refund Id");
+                HeadersInFilter += 1;
+                if HeadersInFilter >= MaxHeadersInFilter then begin
+                    SetCanCreateCreditMemoInRefundLines(RefundIdFilter);
+                    RefundIdFilter := '';
+                    HeadersInFilter := 0;
+                end;
+            until RefundHeader.Next() = 0;
+        if RefundIdFilter <> '' then
+            SetCanCreateCreditMemoInRefundLines(RefundIdFilter);
+
+        UpgradeTag.SetUpgradeTag(GetCreditMemoCanBeCreatedUpgradeTag());
+    end;
+
+    local procedure SetCanCreateCreditMemoInRefundLines(RefundIdFilter: Text)
+    var
+        RefundLine: Record "Shpfy Refund Line";
+        RefundLineDataTransfer: DataTransfer;
+    begin
+        RefundLineDataTransfer.SetTables(Database::"Shpfy Refund Line", Database::"Shpfy Refund Line");
+        RefundLineDataTransfer.AddSourceFilter(RefundLine.FieldNo("Refund Id"), RefundIdFilter);
+        RefundLineDataTransfer.AddConstantValue(true, RefundLine.FieldNo("Can Create Credit Memo"));
+        RefundLineDataTransfer.UpdateAuditFields(false);
+        RefundLineDataTransfer.CopyFields();
     end;
 
     internal procedure GetAllowOutgoingRequestseUpgradeTag(): Code[250]
@@ -305,16 +403,41 @@ codeunit 30106 "Shpfy Upgrade Mgt."
         exit('MS-459849-AutoReleaseSalesOrderTag-20230106')
     end;
 
-#if CLEAN22
-    local procedure GetMoveTemplatesDataTag(): Code[250]
-    begin
-        exit('MS-445489-MoveTemplatesData-20230209');
-    end;
-#endif
-
     internal procedure GetPriceCalculationUpgradeTag(): Code[250]
     begin
         exit('MS-460298-PriceCalculationUpgradeTag-20221201');
+    end;
+
+    local procedure GetLoggingModeUpgradeTag(): Code[250]
+    begin
+        exit('MS-447972-LoggingMode-20230425');
+    end;
+
+    internal procedure GetLocationUpgradeTag(): Code[250]
+    begin
+        exit('MS-472953-LocationUpgradeTag-20230525');
+    end;
+
+    internal procedure GetSyncPricesWithProductsUpgradeTag(): Code[250]
+    begin
+        exit('MS-480542-SyncPricesWithProductsUpgradeTag-20230814');
+    end;
+
+    local procedure GetSendShippingConfirmationUpgradeTag(): Code[250]
+    begin
+        exit('MS-495193-SendShippingConfirmationUpgradeTag-20231221');
+    end;
+
+#if CLEAN24
+    local procedure GetOrderAttributeValueUpgradeTag(): Code[250]
+    begin
+        exit('MS-497909-OrderAttributeValueUpgradeTag-20240125');
+    end;
+#endif
+
+    local procedure GetCreditMemoCanBeCreatedUpgradeTag(): Code[250]
+    begin
+        exit('MS-471880-CreditMemoCanBeCreatedUpgradeTag-20240201');
     end;
 
     local procedure GetDateBeforeFeature(): DateTime
@@ -324,13 +447,13 @@ codeunit 30106 "Shpfy Upgrade Mgt."
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Upgrade Tag", 'OnGetPerCompanyUpgradeTags', '', false, false)]
     local procedure RegisterPerCompanyTags(var PerCompanyUpgradeTags: List of [Code[250]])
-    var
-        UpgradeTag: Codeunit "Upgrade Tag";
     begin
-        if not UpgradeTag.HasUpgradeTag(GetAllowOutgoingRequestseUpgradeTag()) then
-            PerCompanyUpgradeTags.Add(GetAllowOutgoingRequestseUpgradeTag());
-
-        if not UpgradeTag.HasUpgradeTag(GetPriceCalculationUpgradeTag()) then
-            PerCompanyUpgradeTags.Add(GetPriceCalculationUpgradeTag());
+        PerCompanyUpgradeTags.Add(GetAllowOutgoingRequestseUpgradeTag());
+        PerCompanyUpgradeTags.Add(GetPriceCalculationUpgradeTag());
+        PerCompanyUpgradeTags.Add(GetNewAvailabilityCalculationTag());
+        PerCompanyUpgradeTags.Add(GetAutoReleaseSalesOrderTag());
+        PerCompanyUpgradeTags.Add(GetLoggingModeUpgradeTag());
+        PerCompanyUpgradeTags.Add(GetLocationUpgradeTag());
+        PerCompanyUpgradeTags.Add(GetSyncPricesWithProductsUpgradeTag());
     end;
 }

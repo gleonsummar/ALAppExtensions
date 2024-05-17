@@ -1,3 +1,7 @@
+namespace Microsoft.Integration.MDM;
+
+using Microsoft.Integration.SyncEngine;
+
 xmlport 7230 ExportMDMSetup
 {
     Caption = 'Export Master Data Management Setup';
@@ -170,7 +174,7 @@ xmlport 7230 ExportMDMSetup
                 begin
                     integrationTableMapping.CalcFields("Table Filter", "Integration Table Filter");
                     integrationTableMapping."Table Filter".CreateInStream(TableFilterInStr);
-                    integrationTableMapping."Table Filter".CreateInStream(IntegrationTableFilterInStr);
+                    integrationTableMapping."Integration Table Filter".CreateInStream(IntegrationTableFilterInStr);
                     TableFilterInStr.ReadText(tableFilterText);
                     IntegrationTableFilterInStr.ReadText(integrationTableFilterText);
                 end;

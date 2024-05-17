@@ -1,3 +1,11 @@
+namespace Mirosoft.Integration.CompanyHub;
+
+using Microsoft.Utilities;
+using System.Telemetry;
+using System.Environment.Configuration;
+using System.Utilities;
+using System.Environment;
+
 codeunit 1151 "COHUB Core"
 {
     TableNo = "COHUB Enviroment";
@@ -245,7 +253,7 @@ codeunit 1151 "COHUB Core"
         Url: Text;
     begin
         Url := LowerCase(GetUrl(ClientType::Web));
-        exit((StrPos(Url, 'businesscentral.dynamics-tie.com') <> 0) OR (StrPos(Url, 'localhost.businesscentral.dynamics-ppe.com') <> 0));
+        exit((StrPos(Url, 'businesscentral.dynamics-tie.com') <> 0) or (StrPos(Url, 'localhost.businesscentral.dynamics-ppe.com') <> 0));
     end;
 
     procedure GetFixedWebServicesUrl(): Text;
@@ -272,16 +280,6 @@ codeunit 1151 "COHUB Core"
             exit('https://businesscentral.dynamics-tie.com/');
 
         exit(URLHelper.GetFixedClientEndpointBaseUrl());
-    end;
-
-    [Obsolete('Replaced with GetResourceURL', '19.0')]
-    procedure GetResoureUrl(): Text[100];
-    var
-    begin
-        if IsPPE() then
-            exit('https://api.businesscentral.dynamics-tie.com')
-        else
-            exit('https://api.businesscentral.dynamics.com');
     end;
 
     procedure GetResourceUrl(): Text;
@@ -377,7 +375,6 @@ codeunit 1151 "COHUB Core"
     end;
 
     procedure GetEnviromentManagementUrl(): Text;
-    var
     begin
         if IsPPE() then
             exit('https://tenantmanagement.smb.dynamics-tie.com/v3.0/tenant/')

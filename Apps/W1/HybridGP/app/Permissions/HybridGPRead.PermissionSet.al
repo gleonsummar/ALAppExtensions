@@ -1,3 +1,5 @@
+namespace Microsoft.DataMigration.GP;
+
 permissionset 4032 "HybridGP - Read"
 {
     Assignable = false;
@@ -47,19 +49,7 @@ permissionset 4032 "HybridGP - Read"
                     tabledata "GPSOPTrxHist" = R,
                     tabledata "GPSOPUserDefinedWorkHist" = R,
                     tabledata "GPSOPWorkflowWorkHist" = R,
-#if not CLEAN21
-#pragma warning disable AL0432
-#endif
                     tabledata "GPForecastTemp" = R,
-#if not CLEAN21
-#pragma warning restore AL0432
-#endif
-#if not CLEAN22
-#pragma warning disable AL0432
-                    tabledata "GP POPPOHeader" = R,
-                    tabledata "GP POPPOLine" = R,
-#pragma warning restore AL0432
-#endif
                     tabledata "GP Item" = R,
                     tabledata "GP Item Location" = R,
                     tabledata "GP Item Transactions" = R,
@@ -115,5 +105,13 @@ permissionset 4032 "HybridGP - Read"
                     tabledata "GP Hist. Source Error" = R,
                     tabledata "GP POP10100" = R,
                     tabledata "GP POP10110" = R,
-                    tabledata "GP PM00204" = R;
+                    tabledata "GP PM00204" = R,
+                    tabledata "GP Upgrade Settings" = R,
+                    tabledata "GP Migration Error Overview" = R,
+                    tabledata "GP Known Countries" = R,
+                    tabledata "GP PM10200" = R,
+                    tabledata "GP PM30300" = R,
+                    tabledata "GP RM20201" = R,
+                    tabledata "GP RM30201" = R,
+                    tabledata "GP Migration Warnings" = R;
 }

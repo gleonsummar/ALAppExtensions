@@ -1,3 +1,12 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Bank.Payment;
+
+using Microsoft.Bank.Statement;
+using System.IO;
+
 pageextension 20110 "AMC Bank Stmt Line Det. Ext" extends "Bank Statement Line Details"
 {
 
@@ -33,7 +42,6 @@ pageextension 20110 "AMC Bank Stmt Line Det. Ext" extends "Bank Statement Line D
     end;
 
     trigger OnAfterGetRecord()
-    var
     begin
         NameFldAMC := GetFieldNameAMC();
     end;

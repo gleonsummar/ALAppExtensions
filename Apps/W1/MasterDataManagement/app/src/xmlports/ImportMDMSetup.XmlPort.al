@@ -1,3 +1,7 @@
+namespace Microsoft.Integration.MDM;
+
+using Microsoft.Integration.SyncEngine;
+
 xmlport 7231 ImportMDMSetup
 {
     Caption = 'Import Master Data Management Setup';
@@ -70,6 +74,7 @@ xmlport 7231 ImportMDMSetup
                 }
                 fieldattribute(IntegrationTableMapping_OverwriteLocalChange; integrationTableMapping."Overwrite Local Change")
                 {
+                    FieldValidate = No;
                 }
                 fieldattribute(IntegrationTableMapping_ParentName; integrationTableMapping."Parent Name")
                 {
@@ -167,9 +172,11 @@ xmlport 7231 ImportMDMSetup
 
                 trigger OnBeforeInsertRecord()
                 var
+                    MasterDataMgtSetupDefault: Codeunit "Master Data Mgt. Setup Default";
                     TableFilterOutStr: OutStream;
                     IntegrationTableFilterOutStr: OutStream;
                 begin
+                    integrationTableMapping."Table Caption" := MasterDataMgtSetupDefault.GetTableCaption(integrationTableMapping."Table ID");
                     integrationTableMapping."Table Filter".CreateOutStream(TableFilterOutStr);
                     integrationTableMapping."Integration Table Filter".CreateOutStream(IntegrationTableFilterOutStr);
                     TableFilterOutStr.WriteText(tableFilterText);
@@ -178,9 +185,23 @@ xmlport 7231 ImportMDMSetup
 
                 trigger OnAfterInsertRecord()
                 var
+                    MasterDataManagementSetup: Record "Master Data Management Setup";
+                    IntegrationFieldMapping: Record "Integration Field Mapping";
                     MasterDataMgtSetupDefault: Codeunit "Master Data Mgt. Setup Default";
+                    EnqueueJobQueueEntries: Boolean;
                 begin
-                    MasterDataMgtSetupDefault.RecreateJobQueueEntryFromIntTableMapping(integrationTableMapping, 1, true, 30);
+                    IntegrationFieldMapping.SetRange("Integration Table Mapping Name", integrationTableMapping.Name);
+                    if IntegrationFieldMapping.FindSet() then
+                        repeat
+                            IntegrationFieldMapping."Field Caption" := CopyStr(MasterDataMgtSetupDefault.GetFieldCaption(integrationTableMapping."Table ID", IntegrationFieldMapping."Field No."), 1, MaxStrLen(IntegrationFieldMapping."Field Caption"));
+                            IntegrationFieldMapping.Modify();
+                        until IntegrationFieldMapping.Next() = 0;
+
+                    if MasterDataManagementSetup.Get() then
+                        if (MasterDataManagementSetup."Is Enabled") and (not MasterDataManagementSetup."Delay Job Scheduling") then
+                            EnqueueJobQueueEntries := true;
+
+                    MasterDataMgtSetupDefault.RecreateJobQueueEntryFromIntTableMapping(integrationTableMapping, 1, EnqueueJobQueueEntries, 30);
                 end;
 
                 trigger OnBeforeModifyRecord()

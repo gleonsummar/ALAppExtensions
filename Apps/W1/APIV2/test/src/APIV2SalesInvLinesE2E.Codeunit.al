@@ -843,7 +843,8 @@ codeunit 139834 "APIV2 - Sales Inv. Lines E2E"
         SalesHeader: Record "Sales Header";
         Item: Record "Item";
         SalesLine: Record "Sales Line";
-        DiscountAmount, InvDiscAmount : Decimal;
+        DiscountAmount: Decimal;
+        InvDiscAmount: Decimal;
         TargetURL: Text;
         InvoiceLineJSON: Text;
         ResponseText: Text;
@@ -1314,7 +1315,6 @@ codeunit 139834 "APIV2 - Sales Inv. Lines E2E"
     end;
 
     procedure GetLineSubURL(LineId: Guid; ServiceLinesName: Text): Text
-    var
     begin
         exit(ServiceLinesName + '(' + LibraryGraphMgt.StripBrackets(Format(LineId)) + ')');
     end;

@@ -861,7 +861,8 @@ codeunit 139734 "APIV1 - Sales Inv. Lines E2E"
         SalesHeader: Record "Sales Header";
         Item: Record "Item";
         SalesLine: Record "Sales Line";
-        DiscountAmount, InvDiscAmount : Decimal;
+        DiscountAmount: Decimal;
+        InvDiscAmount: Decimal;
         TargetURL: Text;
         InvoiceLineJSON: Text;
         ResponseText: Text;
@@ -1327,7 +1328,6 @@ codeunit 139734 "APIV1 - Sales Inv. Lines E2E"
     end;
 
     procedure GetLineSubURL(DocumentId: Text; Sequence: Integer; ServiceLinesName: Text): Text
-    var
     begin
         EXIT(ServiceLinesName + '(''' + SalesInvoiceAggregator.GetIdFromDocumentIdAndSequence(DocumentId, Sequence) + ''')');
     end;

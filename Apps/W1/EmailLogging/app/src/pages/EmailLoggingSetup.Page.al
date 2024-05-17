@@ -1,3 +1,12 @@
+namespace Microsoft.CRM.EmailLoggin;
+
+using Microsoft.Utilities;
+using System.Environment;
+using System.Threading;
+using System.Security.Encryption;
+using System.Email;
+using System.Security.Authentication;
+
 page 1680 "Email Logging Setup"
 {
     Caption = 'Email Logging';
@@ -97,7 +106,7 @@ page 1680 "Email Logging Setup"
 
                     trigger OnValidate()
                     begin
-                        SetClientSecret(ClientSecretTemp);
+                        Rec.SetClientSecret(ClientSecretTemp);
                     end;
                 }
                 field("Redirect URL"; Rec."Redirect URL")
@@ -128,7 +137,7 @@ page 1680 "Email Logging Setup"
                 begin
                     Commit(); // Make sure all data is committed before we run the wizard
                     Page.RunModal(Page::"Email Logging Setup Wizard");
-                    if Find() then;
+                    if Rec.Find() then;
                     CurrPage.Update(false);
                 end;
 
@@ -258,17 +267,17 @@ page 1680 "Email Logging Setup"
         Rec.Reset();
         if not Rec.Get() then begin
             Rec.Init();
-            Rec."Redirect URL" := GetDefaultRedirectUrl();
-            Rec."Email Batch Size" := GetDefaultEmailBatchSize();
+            Rec."Redirect URL" := Rec.GetDefaultRedirectUrl();
+            Rec."Email Batch Size" := Rec.GetDefaultEmailBatchSize();
             Rec.Insert();
         end else
             if Rec."Redirect URL" = '' then begin
-                Rec."Redirect URL" := GetDefaultRedirectUrl();
+                Rec."Redirect URL" := Rec.GetDefaultRedirectUrl();
                 Rec.Modify();
             end;
 
         ClientSecretTemp := '';
-        if ("Client Id" <> '') and (not IsNullGuid("Client Secret Key")) then
+        if (Rec."Client Id" <> '') and (not IsNullGuid(Rec."Client Secret Key")) then
             ClientSecretTemp := '**********';
 
         IsEmailLoggingEnabled := Rec.Enabled;
@@ -301,11 +310,10 @@ page 1680 "Email Logging Setup"
         DataHandlingConsentQst: Label 'This feature requires that you are using Microsoft Exchange Online. By enabling this feature, you consent to sharing some of your organization''s data in Office 365 with Business Central. Business Central will access details about email messages in the shared mailbox that your administrator created for email logging. The details include the message’s IDs, whether it is a draft, the dates and times it was sent and received, the text from the Subject line, a link to the message in Exchange Online, and the email addresses of the sender and the recipients on the To and Cc lines.\\Business Central will store only the IDs, dates, subject, and weblink. We do not store the content of the messages, but there is a link that will open the email message in Outlook Online.\\Do you want to continue?';
 
     [TryFunction]
-    [NonDebuggable]
     local procedure SignInAndGiveAppConsent()
     var
         TenantId: Text;
-        AccessToken: Text;
+        AccessToken: SecretText;
     begin
         if Rec."Consent Given" then
             exit;
@@ -317,24 +325,24 @@ page 1680 "Email Logging Setup"
         Rec."Consent Given" := TenantId <> '';
     end;
 
-    [NonDebuggable]
     local procedure SignInAndRenewToken(): Boolean
     var
-        AccessToken: Text;
+        AccessToken: SecretText;
     begin
         if not Confirm(SignInTxt, false) then
             Error('');
         OAuthClient.Initialize();
         OAuthClient.GetAccessToken(Enum::"Prompt Interaction"::"Select Account", AccessToken);
         EmailLoggingManagement.UpdateEmailLoggingJobQueueSetup();
-        exit(AccessToken <> '');
+        exit(not AccessToken.IsEmpty());
     end;
 
     local procedure CheckSharedMailboxAvailability()
     var
         EmailLoggingAPIHelper: Codeunit "Email Logging API Helper";
     begin
-        if not EmailLoggingAPIHelper.IsSharedMailboxAvailable("Email Address") then
+        if not EmailLoggingAPIHelper.IsSharedMailboxAvailable(Rec."Email Address") then
             Error(CannotAccessMailboxErr);
     end;
 }
+

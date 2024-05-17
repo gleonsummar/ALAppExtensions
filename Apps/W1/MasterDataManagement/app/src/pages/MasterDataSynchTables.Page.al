@@ -1,11 +1,19 @@
+namespace Microsoft.Integration.MDM;
+
+using Microsoft.Integration.SyncEngine;
+using System.Globalization;
+using System.Reflection;
+using System.Threading;
+
 page 7233 "Master Data Synch. Tables"
 {
     ApplicationArea = Suite;
     Caption = 'Synchronization Tables';
     PageType = List;
     SourceTable = "Integration Table Mapping";
+    DelayedInsert = true;
     SourceTableView = where("Delete After Synchronization" = const(false),
-                            Type = const(Type::"Master Data Management"));
+                            Type = const(7230));
     UsageCategory = Lists;
     AdditionalSearchTerms = 'mdm,master data management,master data';
     Permissions = tabledata "Integration Table Mapping" = r,
@@ -21,38 +29,106 @@ page 7233 "Master Data Synch. Tables"
                 {
                     ApplicationArea = Suite;
                     Editable = false;
-                    ToolTip = 'Specifies the name of the integration table mapping entry.';
+                    ToolTip = 'Specifies the name of the table.';
                     Visible = false;
                 }
                 field(Status; Rec.Status)
                 {
                     ApplicationArea = Suite;
-                    ToolTip = 'Specifies if this mapping is enabled.';
+                    ToolTip = 'Specifies if synchronization is enabled for this table.';
                 }
-                field(TableCaptionValue; TableCaptionValue)
+                field(TableCaptionValue; Rec."Table Caption")
                 {
                     ApplicationArea = Suite;
                     Caption = 'Table';
                     Editable = false;
-                    ToolTip = 'Specifies the name of the business data table in Business Central to map to the integration table.';
+                    ToolTip = 'Specifies the table caption.';
+
+                    trigger OnAssistEdit()
+                    var
+                        IntegrationTableMapping: Record "Integration Table Mapping";
+                        IntegrationFieldMapping: Record "Integration Field Mapping";
+                        AllObjWithCaption: Record AllObjWithCaption;
+                        TableMetadata: Record "Table Metadata";
+                        RecRef: RecordRef;
+                        ExistingSynchTableNos: List of [Integer];
+                        RelatedTablesToAdd: List of [Integer];
+                        RelatedTablesToAddText: Text;
+                        TableFilterTxt: Text;
+                        RelatedTableNo: Integer;
+                    begin
+                        if Rec."Table ID" <> 0 then
+                            exit;
+
+                        IntegrationTableMapping.SetRange(Type, IntegrationTableMapping.Type::"Master Data Management");
+                        if IntegrationTableMapping.FindSet() then
+                            repeat
+                                if TableFilterTxt = '' then
+                                    TableFilterTxt := '<>' + Format(IntegrationTableMapping."Table ID")
+                                else
+                                    TableFilterTxt += '&<>' + Format(IntegrationTableMapping."Table ID");
+                                ExistingSynchTableNos.Add(IntegrationTableMapping."Table ID");
+                            until IntegrationTableMapping.Next() = 0;
+
+                        AllObjWithCaption.SetRange("Object Type", AllObjWithCaption."Object Type"::Table);
+                        AllObjWithCaption.SetFilter("Object ID", TableFilterTxt);
+                        if Page.RunModal(Page::"Table Objects", AllObjWithCaption) <> Action::LookupOK then
+                            exit;
+
+                        if not TableMetadata.Get(AllObjWithCaption."Object ID") then
+                            Error(TableMetadataNotFoundErr, AllObjWithCaption."Object ID");
+
+                        if not TableMetadata.DataPerCompany then
+                            Error(TableNotPerCompanyErr, AllObjWithCaption."Object Name");
+
+                        if TableMetadata.TableType <> TableMetadata.TableType::Normal then
+                            Error(TableNotOfTypeNormalErr, AllObjWithCaption."Object Name");
+
+                        RecRef.Open(AllObjWithCaption."Object ID");
+                        if not RecRef.WritePermission() then
+                            Error(TablePermissionMissingErr, AllObjWithCaption."Object Name");
+                        RecRef.Close();
+
+                        FindRelatedTables(ExistingSynchTableNos, RelatedTablesToAdd, RelatedTablesToAddText, AllObjWithCaption."Object ID");
+                        AddTable(IntegrationTableMapping, AllObjWithCaption."Object Name", AllObjWithCaption."Object ID");
+                        IntegrationFieldMapping.SetRange("Integration Table Mapping Name", IntegrationTableMapping.Name);
+
+                        if RelatedTablesToAdd.Count() > 0 then
+                            if Confirm(StrSubstno(RelatedTablesQst, RelatedTablesToAddText)) then begin
+                                IntegrationTableMapping.Validate(Status, IntegrationTableMapping.Status::Disabled);
+                                IntegrationTableMapping.Modify();
+                                foreach RelatedTableNo in RelatedTablesToAdd do
+                                    if TableMetadata.Get(RelatedTableNo) then
+                                        if (TableMetadata.TableType = TableMetadata.TableType::Normal) and TableMetadata.DataPerCompany then begin
+                                            AddTable(IntegrationTableMapping, TableMetadata.TableName, RelatedTableNo);
+                                            IntegrationTableMapping.Validate(Status, IntegrationTableMapping.Status::Disabled);
+                                            IntegrationTableMapping.Modify();
+                                        end;
+                                Message(StrSubstNo(RelatedTablesAddedMsg, AllObjWithCaption."Object Name", RelatedTablesToAddText));
+                                exit;
+                            end;
+
+                        Commit();
+                        Page.Run(Page::"Master Data Synch. Fields", IntegrationFieldMapping);
+                    end;
                 }
                 field(TableFilterValue; TableFilter)
                 {
                     ApplicationArea = Suite;
                     Caption = 'Table Filter';
-                    ToolTip = 'Specifies a filter on the business data table in Dynamics 365 to control which records can be synchronized with the corresponding records in the integration table that is specified by the Integration Table ID field.';
+                    ToolTip = 'Specifies the filter on the table in the current company to control which records should be synchronized.';
                     visible = false;
 
                     trigger OnAssistEdit()
                     var
                         FilterPageBuilder: FilterPageBuilder;
                     begin
-                        FilterPageBuilder.AddTable(TableCaptionValue, Rec."Table ID");
+                        FilterPageBuilder.AddTable(Rec."Table Caption", Rec."Table ID");
                         if TableFilter <> '' then
-                            FilterPageBuilder.SetView(TableCaptionValue, TableFilter);
+                            FilterPageBuilder.SetView(Rec."Table Caption", TableFilter);
                         if FilterPageBuilder.RunModal() then begin
-                            TableFilter := FilterPageBuilder.GetView(TableCaptionValue, false);
-                            SetTableFilter(TableFilter);
+                            TableFilter := FilterPageBuilder.GetView(Rec."Table Caption", false);
+                            Rec.SetTableFilter(TableFilter);
                         end;
                     end;
                 }
@@ -66,45 +142,45 @@ page 7233 "Master Data Synch. Tables"
                     ApplicationArea = Suite;
                     Caption = 'Integration Table';
                     Enabled = false;
-                    ToolTip = 'Specifies the ID of the integration table to map to the business table.';
+                    ToolTip = 'Specifies the caption of the table.';
                     Visible = false;
                 }
                 field("Table Config Template Code"; Rec."Table Config Template Code")
                 {
                     ApplicationArea = Suite;
-                    ToolTip = 'Specifies a configuration template to use when creating new records in the Dynamics 365 business table (specified by the Table ID field) during synchronization.';
+                    ToolTip = 'Specifies a configuration template to use when creating new records out of the table in the source company.';
                     Visible = false;
                 }
                 field("Synch. Int. Tbl. Mod. On Fltr."; Rec."Synch. Int. Tbl. Mod. On Fltr.")
                 {
                     ApplicationArea = Suite;
-                    ToolTip = 'Specifies a date/time filter that uses the date on which records were modified to determine which records to synchronize to the chosen source company. The filter is based on the SystemModifiedAt field on the Business Central table records.';
+                    ToolTip = 'Specifies a date/time that is used to determine which records to synchronize to the source company. Only records that have SystemModifiedAt value greater than this value, will be synchronized. This value keeps changing with every synchronization job.';
                     Visible = false;
                 }
                 field("Synch. Modified On Filter"; Rec."Synch. Modified On Filter")
                 {
                     Caption = 'Synchronize Changes Since';
                     ApplicationArea = Suite;
-                    ToolTip = 'Specifies a date/time filter that uses the date on which records were modified to determine which records to synchronize from the chosen source company. The filter is based on the Modified On field on the integration table records.';
+                    ToolTip = 'Specifies a date/time that is used to determine which records to synchronize from the source company. Only records that have SystemModifiedAt value greater than this value, will be synchronized. This value keeps changing with every synchronization job.';
                 }
                 field(IntegrationTableFilter; IntegrationTableFilterHint)
                 {
                     ApplicationArea = Suite;
-                    Caption = 'Table Filter';
-                    ToolTip = 'Specifies a filter on the integration table to control which records can be synchronized with the corresponding records in the business data table that is specified by the Table field.';
+                    Caption = 'Source Table Filter';
+                    ToolTip = 'Specifies a filter on the table in the source company to control which records should be synchronized.';
 
                     trigger OnDrillDown()
                     var
                         MasterDataManagement: Codeunit "Master Data Management";
                         FilterPageBuilder: FilterPageBuilder;
                     begin
-                        FilterPageBuilder.AddTable(IntegrationTableCaptionValue, "Integration Table ID");
+                        FilterPageBuilder.AddTable(IntegrationTableCaptionValue, Rec."Integration Table ID");
                         if IntegrationTableFilter <> '' then
                             FilterPageBuilder.SetView(IntegrationTableCaptionValue, IntegrationTableFilter);
                         Commit();
                         if FilterPageBuilder.RunModal() then begin
                             IntegrationTableFilter := FilterPageBuilder.GetView(IntegrationTableCaptionValue, false);
-                            Session.LogMessage('0000J8R', StrSubstNo(UserEditedIntegrationTableFilterTxt, Name), Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', MasterDataManagement.GetTelemetryCategory());
+                            Session.LogMessage('0000J8R', StrSubstNo(UserEditedIntegrationTableFilterTxt, Rec.Name), Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', MasterDataManagement.GetTelemetryCategory());
                             Rec.SetIntegrationTableFilter(IntegrationTableFilter);
                         end;
                     end;
@@ -112,7 +188,7 @@ page 7233 "Master Data Synch. Tables"
                 field("Synch. Only Coupled Records"; Rec."Synch. Only Coupled Records")
                 {
                     ApplicationArea = Suite;
-                    ToolTip = 'Specifies how to handle uncoupled records in Dynamics 365 Sales entities and Dynamics 365 tables when synchronization is performed by an integration synchronization job.';
+                    ToolTip = 'Specifies if synchronization jobs should synchronize only currently coupled records. To synchronize newly inserted records, uncheck this checkbox.';
                     Visible = false;
                 }
                 field("Disable Event Job Resch."; Rec."Disable Event Job Resch.")
@@ -124,13 +200,13 @@ page 7233 "Master Data Synch. Tables"
                 field("Deletion-Conflict Resolution"; Rec."Deletion-Conflict Resolution")
                 {
                     ApplicationArea = Suite;
-                    ToolTip = 'Specifies the action to take when a coupled record is deleted in one of the connected applications.';
+                    ToolTip = 'Specifies the action to take when a coupled record that is attempting to synchronize is deleted locally.';
                     Visible = false;
                 }
                 field("Update-Conflict Resolution"; Rec."Update-Conflict Resolution")
                 {
                     ApplicationArea = Suite;
-                    ToolTip = 'Specifies the action to take when a coupled record is updated in both of the connected applications.';
+                    ToolTip = 'Specifies the action to take when a coupled record is updated both in the source and in the local company.';
                     Visible = false;
                 }
             }
@@ -149,14 +225,14 @@ page 7233 "Master Data Synch. Tables"
                 Image = Relationship;
                 RunObject = Page "Master Data Synch. Fields";
                 RunPageLink = "Integration Table Mapping Name" = field(Name);
-                ToolTip = 'View fields that are synchronized.';
+                ToolTip = 'Shows the fields that are synchronized.';
             }
             action(ResetConfiguration)
             {
                 ApplicationArea = Suite;
                 Caption = 'Use Default Synchronization Setup';
                 Image = ResetStatus;
-                ToolTip = 'Resets the tables and synchronization jobs to the default values for a connection with the source company. All current mappings are deleted.';
+                ToolTip = 'Resets the tables, fields and synchronization jobs to the default values for the connection with the source company. All default synchronization table definitions are deleted and recreated.';
 
                 trigger OnAction()
                 var
@@ -193,7 +269,7 @@ page 7233 "Master Data Synch. Tables"
                 Caption = 'Synchronization Log';
                 Enabled = HasRecords;
                 Image = Log;
-                ToolTip = 'View the status of the individual synchronization jobs that have been run for this table. This includes synchronization jobs that have been run from the job queue and manual synchronization jobs that were performed on records from the Business Central client.';
+                ToolTip = 'View the status of the individual synchronization jobs that have been run for this table.';
 
                 trigger OnAction()
                 var
@@ -304,7 +380,7 @@ page 7233 "Master Data Synch. Tables"
                 Enabled = HasRecords;
                 Visible = DataSynchEnabled;
                 Image = Log;
-                ToolTip = 'View the status of jobs for uncoupling records. The jobs were run either from the job queue, or manually, in Business Central.';
+                ToolTip = 'View the status of jobs for uncoupling records.';
 
                 trigger OnAction()
                 var
@@ -338,7 +414,7 @@ page 7233 "Master Data Synch. Tables"
                 Enabled = HasRecords and (Rec."Parent Name" = '');
                 Visible = DataSynchEnabled;
                 Image = UnLinkAccount;
-                ToolTip = 'Delete couplings for the selected Business Central record types.';
+                ToolTip = 'Delete couplings for the selected tables.';
 
                 trigger OnAction()
                 var
@@ -391,7 +467,7 @@ page 7233 "Master Data Synch. Tables"
                 Enabled = HasRecords and (Rec."Parent Name" = '');
                 Visible = DataSynchEnabled;
                 Image = LinkAccount;
-                ToolTip = 'Make couplings between the selected Business Central record types based on matching criteria.';
+                ToolTip = 'Couple existing records in the selected tables based on matching criteria.';
 
                 trigger OnAction()
                 var
@@ -439,71 +515,6 @@ page 7233 "Master Data Synch. Tables"
         }
     }
 
-    trigger OnNewRecord(BelowxRec: Boolean)
-    var
-        IntegrationTableMapping: Record "Integration Table Mapping";
-        IntegrationFieldMapping: Record "Integration Field Mapping";
-        AllObjWithCaption: Record AllObjWithCaption;
-        TableMetadata: Record "Table Metadata";
-        RecRef: RecordRef;
-        ExistingSynchTableNos: List of [Integer];
-        RelatedTablesToAdd: List of [Integer];
-        RelatedTablesToAddText: Text;
-        TableFilterTxt: Text;
-        RelatedTableNo: Integer;
-    begin
-        IntegrationTableMapping.SetRange(Type, IntegrationTableMapping.Type::"Master Data Management");
-        if IntegrationTableMapping.FindSet() then
-            repeat
-                if TableFilterTxt = '' then
-                    TableFilterTxt := '<>' + Format(IntegrationTableMapping."Table ID")
-                else
-                    TableFilterTxt += '&<>' + Format(IntegrationTableMapping."Table ID");
-                ExistingSynchTableNos.Add(IntegrationTableMapping."Table ID");
-            until IntegrationTableMapping.Next() = 0;
-
-        AllObjWithCaption.SetRange("Object Type", AllObjWithCaption."Object Type"::Table);
-        AllObjWithCaption.SetFilter("Object ID", TableFilterTxt);
-        if Page.RunModal(Page::"Table Objects", AllObjWithCaption) <> Action::LookupOK then
-            exit;
-
-        if not TableMetadata.Get(AllObjWithCaption."Object ID") then
-            Error(TableMetadataNotFoundErr, AllObjWithCaption."Object ID");
-
-        if not TableMetadata.DataPerCompany then
-            Error(TableNotPerCompanyErr, AllObjWithCaption."Object Name");
-
-        if TableMetadata.TableType <> TableMetadata.TableType::Normal then
-            Error(TableNotOfTypeNormalErr, AllObjWithCaption."Object Name");
-
-        RecRef.Open(AllObjWithCaption."Object ID");
-        if not RecRef.WritePermission() then
-            Error(TablePermissionMissingErr, AllObjWithCaption."Object Name");
-        RecRef.Close();
-
-        FindRelatedTables(ExistingSynchTableNos, RelatedTablesToAdd, RelatedTablesToAddText, AllObjWithCaption."Object ID");
-        AddTable(IntegrationTableMapping, AllObjWithCaption."Object Name", AllObjWithCaption."Object ID");
-        IntegrationFieldMapping.SetRange("Integration Table Mapping Name", IntegrationTableMapping.Name);
-
-        if RelatedTablesToAdd.Count() > 0 then
-            if Confirm(StrSubstno(RelatedTablesQst, RelatedTablesToAddText)) then begin
-                IntegrationTableMapping.Validate(Status, IntegrationTableMapping.Status::Disabled);
-                IntegrationTableMapping.Modify();
-                foreach RelatedTableNo in RelatedTablesToAdd do
-                    if TableMetadata.Get(RelatedTableNo) then
-                        if (TableMetadata.TableType = TableMetadata.TableType::Normal) and TableMetadata.DataPerCompany then begin
-                            AddTable(IntegrationTableMapping, TableMetadata.TableName, RelatedTableNo);
-                            IntegrationTableMapping.Validate(Status, IntegrationTableMapping.Status::Disabled);
-                            IntegrationTableMapping.Modify();
-                        end;
-                Message(StrSubstNo(RelatedTablesAddedMsg, AllObjWithCaption."Object Name", RelatedTablesToAddText));
-                exit;
-            end;
-
-        Commit();
-        Page.Run(Page::"Master Data Synch. Fields", IntegrationFieldMapping);
-    end;
-
     local procedure FindRelatedTables(var ExistingSynchTableNos: List of [Integer]; var RelatedTablesToAdd: List of [Integer]; var RelatedTablesToAddText: Text; TableId: Integer)
     var
         Field: Record Field;
@@ -539,10 +550,12 @@ page 7233 "Master Data Synch. Tables"
 
     local procedure AddTable(var IntegrationTableMapping: Record "Integration Table Mapping"; TableName: Text; TableNo: Integer)
     var
+        MasterDataManagementSetup: Record "Master Data Management Setup";
         MasterDataManagementSetupDefaults: Codeunit "Master Data Mgt. Setup Default";
         AllFieldsDisabledList: List of [Integer];
         IntegrationTableMappingName: Code[20];
         I: Integer;
+        ShouldEnqueueJob: Boolean;
     begin
         IntegrationTableMappingName := CopyStr('MDM_' + DelChr(Uppercase(TableName), '=', DelChr(Uppercase(TableName), '=', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')), 1, MaxStrLen(IntegrationTableMappingName));
         IntegrationTableMapping.Reset();
@@ -554,36 +567,42 @@ page 7233 "Master Data Synch. Tables"
             I += 1;
         end;
 
-        MasterDataManagementSetupDefaults.GenerateIntegrationTableMapping(IntegrationTableMapping, AllFieldsDisabledList, IntegrationTableMappingName, TableNo, '', false, true);
+        OnAddSynchronizationTableChooseMappingName(IntegrationTableMappingName, TableNo);
+
+        ShouldEnqueueJob := true;
+        if MasterDataManagementSetup.Get() then
+            ShouldEnqueueJob := (not MasterDataManagementSetup."Delay Job Scheduling");
+        MasterDataManagementSetupDefaults.GenerateIntegrationTableMapping(IntegrationTableMapping, AllFieldsDisabledList, IntegrationTableMappingName, TableNo, '', false, ShouldEnqueueJob);
     end;
 
     trigger OnAfterGetRecord()
     begin
         IntegrationTableCaptionValue := ObjectTranslation.TranslateObject(ObjectTranslation."Object Type"::Table, Rec."Integration Table ID");
-        TableCaptionValue := ObjectTranslation.TranslateObject(ObjectTranslation."Object Type"::Table, Rec."Table ID");
         IntegrationFieldCaptionValue := GetFieldCaption();
         IntegrationFieldTypeValue := GetFieldType();
 
-        TableFilter := GetTableFilter();
-        IntegrationTableFilter := GetIntegrationTableFilter();
+        TableFilter := Rec.GetTableFilter();
+        IntegrationTableFilter := Rec.GetIntegrationTableFilter();
 
         if IntegrationTableFilter <> '' then
             IntegrationTableFilterHint := EditIntegrationTableFilterTxt
         else
             IntegrationTableFilterHint := '';
 
-        HasRecords := not IsEmpty();
+        HasRecords := not Rec.IsEmpty();
     end;
 
     trigger OnInit()
+    var
+        MasterDataMgtUpgrade: Codeunit "Master Data Mgt. Upgrade";
     begin
         SetDataSynchEnabledState();
+        MasterDataMgtUpgrade.UpgradeSynchTableCaptions();
     end;
 
     var
         ObjectTranslation: Record "Object Translation";
         TypeHelper: Codeunit "Type Helper";
-        TableCaptionValue: Text[250];
         IntegrationFieldCaptionValue: Text;
         IntegrationFieldTypeValue: Text;
         IntegrationTableCaptionValue: Text[250];
@@ -618,7 +637,7 @@ page 7233 "Master Data Synch. Tables"
     var
         "Field": Record "Field";
     begin
-        if TypeHelper.GetField("Integration Table ID", "Integration Table UID Fld. No.", Field) then
+        if TypeHelper.GetField(Rec."Integration Table ID", Rec."Integration Table UID Fld. No.", Field) then
             exit(Field."Field Caption");
     end;
 
@@ -626,7 +645,7 @@ page 7233 "Master Data Synch. Tables"
     var
         "Field": Record "Field";
     begin
-        Field.Type := "Int. Table UID Field Type";
+        Field.Type := Rec."Int. Table UID Field Type";
         exit(Format(Field.Type))
     end;
 
@@ -647,5 +666,13 @@ page 7233 "Master Data Synch. Tables"
         if JQueueEntry.FindFirst() then
             Page.Run(Page::"Job Queue Entries", JQueueEntry);
     end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnAddSynchronizationTableChooseMappingName(var IntegrationTableMappingName: Code[20]; TableNo: Integer);
+    begin
+    end;
+
 }
+
+
 

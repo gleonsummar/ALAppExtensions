@@ -1,3 +1,5 @@
+namespace Microsoft.Finance.GeneralLedger.Review;
+
 enum 22203 "Review Policy Type"
 {
     Extensible = true;

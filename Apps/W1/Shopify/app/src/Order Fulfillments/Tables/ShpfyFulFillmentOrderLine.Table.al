@@ -1,3 +1,5 @@
+namespace Microsoft.Integration.Shopify;
+
 table 30144 "Shpfy FulFillment Order Line"
 {
     Caption = 'FulFillment Order Line';
@@ -40,7 +42,7 @@ table 30144 "Shpfy FulFillment Order Line"
             Caption = 'Remaining Quantity';
             DataClassification = CustomerContent;
         }
-        Field(8; "Quantity to Fulfill"; Decimal)
+        field(8; "Quantity to Fulfill"; Decimal)
         {
             Caption = 'Qty. to Fulfill';
             DataClassification = CustomerContent;
@@ -49,6 +51,12 @@ table 30144 "Shpfy FulFillment Order Line"
         {
             Caption = 'Shopify Variant Id';
             DataClassification = SystemMetadata;
+        }
+        field(10; "Delivery Method Type"; Enum "Shpfy Delivery Method Type")
+        {
+            Caption = 'Delivery Method Type';
+            DataClassification = SystemMetadata;
+            Editable = false;
         }
     }
     keys

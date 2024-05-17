@@ -1,3 +1,5 @@
+namespace Microsoft.Integration.Shopify;
+
 /// <summary>
 /// Page Shpfy Orders to Import (ID 30121).
 /// </summary>
@@ -39,6 +41,11 @@ page 30121 "Shpfy Orders to Import"
                 {
                     ApplicationArea = All;
                     ToolTip = 'Specifies the action to take for this order.';
+                }
+                field(PurchasingEntity; Rec."Purchasing Entity")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the purchasing entity from Shopify.';
                 }
                 field(NumberOfItems; Rec."Total Quantity of Items")
                 {
@@ -185,10 +192,10 @@ page 30121 "Shpfy Orders to Import"
                 trigger OnAction()
                 var
                     SelectedRec: Record "Shpfy Orders to Import";
-                    Background: Codeunit "Shpfy Background Syncs";
+                    BackgroundSyncs: Codeunit "Shpfy Background Syncs";
                 begin
                     CurrPage.SetSelectionFilter(SelectedRec);
-                    Background.OrderSync(SelectedRec);
+                    BackgroundSyncs.OrderSync(SelectedRec);
                 end;
             }
         }

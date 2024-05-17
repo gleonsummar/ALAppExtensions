@@ -1,3 +1,5 @@
+namespace Microsoft.Integration.Shopify;
+
 /// <summary>
 /// Table Shpfy Order Tax Line (ID 30122).
 /// </summary>
@@ -44,13 +46,8 @@ table 30122 "Shpfy Order Tax Line"
             Caption = 'Currency Code';
             DataClassification = SystemMetadata;
             Editable = false;
-#if not CLEAN22
-            ObsoleteState = Pending;
-            ObsoleteTag = '22.0';
-#else
             ObsoleteState = Removed;
             ObsoleteTag = '25.0';
-#endif
             ObsoleteReason = 'This information is available in Shopify Order Header table.';
         }
         field(7; "Presentment Amount"; Decimal)

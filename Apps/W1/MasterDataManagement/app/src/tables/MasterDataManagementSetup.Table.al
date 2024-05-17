@@ -1,3 +1,12 @@
+namespace Microsoft.Integration.MDM;
+
+using System.Threading;
+using System.Environment;
+using Microsoft.Foundation.Company;
+using System.Telemetry;
+using Microsoft.Integration.SyncEngine;
+using Microsoft.Utilities;
+
 table 7230 "Master Data Management Setup"
 {
     Caption = 'Master Data Management Setup';
@@ -21,7 +30,7 @@ table 7230 "Master Data Management Setup"
             begin
                 if "Is Enabled" then
                     if "Company Name" = '' then
-                        Error('');
+                        Error(MustPickSourceCompanyErr);
             end;
         }
         field(151; "Company Name"; Text[30])
@@ -64,6 +73,11 @@ table 7230 "Master Data Management Setup"
                 MasterDataManagement.AddSubsidiarySubscriptionToMasterCompany(Rec."Company Name", CurrentCompanyName);
                 MasterDataMgtCoupling.DeleteAll();
             end;
+        }
+        field(152; "Delay Job Scheduling"; Boolean)
+        {
+            Caption = 'Delay Synchronization Job Scheduling';
+            DataClassification = SystemMetadata;
         }
     }
 
@@ -114,7 +128,7 @@ table 7230 "Master Data Management Setup"
         Companies: Page Companies;
         Result: Boolean;
     begin
-        Company.SetFilter(Name, '<>' + CompanyName());
+        Company.SetFilter(Name, '<>%1', CompanyName());
         Companies.SetTableView(Company);
         Companies.SetRecord(Company);
         Companies.LookupMode := true;
@@ -130,13 +144,21 @@ table 7230 "Master Data Management Setup"
     local procedure EnableConnection()
     var
         MasterDataMgtSubscriber: Record "Master Data Mgt. Subscriber";
+        IntegrationTableMapping: Record "Integration Table Mapping";
         FeatureTelemetry: Codeunit "Feature Telemetry";
         MasterDataMgtSetupDefault: Codeunit "Master Data Mgt. Setup Default";
         MasterDataManagement: Codeunit "Master Data Management";
         CurrentCompanyName: Text[30];
+        ResetConfig: Boolean;
     begin
         FeatureTelemetry.LogUptake('0000JIL', MasterDataManagement.GetFeatureName(), Enum::"Feature Uptake Status"::"Set up");
-        MasterDataMgtSetupDefault.ResetConfiguration(Rec);
+        IntegrationTableMapping.SetRange(Type, IntegrationTableMapping.Type::"Master Data Management");
+        if IntegrationTableMapping.IsEmpty() then
+            ResetConfig := true
+        else
+            ResetConfig := Confirm(ResetConfigQst);
+        if ResetConfig then
+            MasterDataMgtSetupDefault.ResetConfiguration(Rec);
         CurrentCompanyName := CopyStr(CompanyName(), 1, MaxStrLen(MasterDataMgtSubscriber."Company Name"));
         MasterDataManagement.AddSubsidiarySubscriptionToMasterCompany(Rec."Company Name", CurrentCompanyName);
         Message(StrSubstNo(SynchronizationEnabledMsg, Rec."Company Name"));
@@ -228,4 +250,6 @@ table 7230 "Master Data Management Setup"
         CouplingsWillBeDeletedQst: label 'All the couplings with records from previous source company %1 will be deleted. Do you want to continue?', Comment = '%1 - a company name';
         KeepTheCouplingsQst: label 'Data synchronization with company %1 is disabled. \\We recommend to keep the table setup and coupling information, especially if you intend to reenable the synchronization with the same company. \\Do you want to keep the table setup and coupling information?', Comment = '%1 - a company name';
         MustNotPickCurrentCompanyErr: label 'You are currently signed into this company. \\Choose a different company to synchronize data with.';
+        MustPickSourceCompanyErr: label 'You must choose a source company to synchronize data from.';
+        ResetConfigQst: label 'There are existing synchronization table definitions in this company. Do you want to reset them to the default configuration?';
 }

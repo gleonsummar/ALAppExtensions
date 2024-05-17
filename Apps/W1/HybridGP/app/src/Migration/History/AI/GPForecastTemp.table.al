@@ -1,12 +1,9 @@
+namespace Microsoft.DataMigration.GP;
+
+#pragma warning disable AS0109
 table 4031 "GPForecastTemp"
 {
-#if CLEAN21
     TableType = Temporary;
-#else 
-    ObsoleteState = Pending;
-    ObsoleteReason = 'Table will be moved to temporary';
-    ObsoleteTag = '21.0';
-#endif
     ReplicateData = false;
     Extensible = false;
 
@@ -47,3 +44,4 @@ table 4031 "GPForecastTemp"
         }
     }
 }
+#pragma warning restore AS0109

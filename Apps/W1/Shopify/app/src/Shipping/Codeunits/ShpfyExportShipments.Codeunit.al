@@ -1,3 +1,8 @@
+namespace Microsoft.Integration.Shopify;
+
+using Microsoft.Foundation.Shipping;
+using Microsoft.Sales.History;
+
 /// <summary>
 /// Codeunit Shpfy Export Shipments (ID 30190).
 /// </summary>
@@ -25,12 +30,13 @@ codeunit 30190 "Shpfy Export Shipments"
             ShipmentLocation.SetRange(No, SalesShipmentHeader."No.");
             if ShipmentLocation.Open() then
                 while ShipmentLocation.Read() do
-                    CreateShopifyFulfillment(SalesShipmentHeader, ShipmentLocation.LocationId, ShipmentLocation.LocationCode);
+                    CreateShopifyFulfillment(SalesShipmentHeader, ShipmentLocation.LocationId, ShipmentLocation.DeliveryMethodType);
         end;
     end;
 
-    local procedure CreateShopifyFulfillment(var SalesShipmentHeader: Record "Sales Shipment Header"; LocationId: BigInteger; LocationCode: Code[10]);
+    local procedure CreateShopifyFulfillment(var SalesShipmentHeader: Record "Sales Shipment Header"; LocationId: BigInteger; DeliveryMethodType: Enum "Shpfy Delivery Method Type");
     var
+        Shop: Record "Shpfy Shop";
         ShopifyOrderHeader: Record "Shpfy Order Header";
         OrderFulfillments: Codeunit "Shpfy Order Fulfillments";
         JsonHelper: Codeunit "Shpfy Json Helper";
@@ -40,7 +46,8 @@ codeunit 30190 "Shpfy Export Shipments"
     begin
         if ShopifyOrderHeader.Get(SalesShipmentHeader."Shpfy Order Id") then begin
             ShopifyCommunicationMgt.SetShop(ShopifyOrderHeader."Shop Code");
-            FulfillmentOrderRequest := CreateFulfillmentOrderRequest(SalesShipmentHeader, LocationId, LocationCode);
+            Shop.Get(ShopifyOrderHeader."Shop Code");
+            FulfillmentOrderRequest := CreateFulfillmentOrderRequest(SalesShipmentHeader, Shop, LocationId, DeliveryMethodType);
             if FulfillmentOrderRequest <> '' then begin
                 JResponse := ShopifyCommunicationMgt.ExecuteGraphQL(FulfillmentOrderRequest);
                 JFulfillment := JsonHelper.GetJsonToken(JResponse, 'data.fulfillmentCreateV2.fulfillment');
@@ -54,11 +61,12 @@ codeunit 30190 "Shpfy Export Shipments"
         end;
     end;
 
-    internal procedure CreateFulfillmentOrderRequest(SalesShipmentHeader: Record "Sales Shipment Header"; LocationId: BigInteger; LocationCode: Code[10]) Request: Text;
+    internal procedure CreateFulfillmentOrderRequest(SalesShipmentHeader: Record "Sales Shipment Header"; Shop: Record "Shpfy Shop"; LocationId: BigInteger; DeliveryMethodType: Enum "Shpfy Delivery Method Type") Request: Text;
     var
         SalesShipmentLine: Record "Sales Shipment Line";
         ShippingAgent: Record "Shipping Agent";
         FulfillmentOrderLine: Record "Shpfy FulFillment Order Line";
+        OrderLine: Record "Shpfy Order Line";
         TempFulfillmentOrderLine: Record "Shpfy FulFillment Order Line" temporary;
         TrackingCompany: Enum "Shpfy Tracking Companies";
         PrevFulfillmentOrderId: BigInteger;
@@ -71,31 +79,35 @@ codeunit 30190 "Shpfy Export Shipments"
         SalesShipmentLine.Reset();
         SalesShipmentLine.SetRange("Document No.", SalesShipmentHeader."No.");
         SalesShipmentLine.SetRange(Type, SalesShipmentLine.Type::Item);
-        SalesShipmentLine.SetRange("Location Code", LocationCode);
         SalesShipmentLine.SetFilter("Shpfy Order Line Id", '<>%1', 0);
         SalesShipmentLine.SetFilter(Quantity, '>%1', 0);
         if SalesShipmentLine.FindSet() then begin
             repeat
-                if FindFulfillmentOrderLine(SalesShipmentHeader, SalesShipmentLine, FulfillmentOrderLine) then begin
-                    FulfillmentOrderLine."Quantity to Fulfill" += Round(SalesShipmentLine.Quantity, 1, '=');
-                    FulfillmentOrderLine."Remaining Quantity" := FulfillmentOrderLine."Remaining Quantity" - Round(SalesShipmentLine.Quantity, 1, '=');
-                    FulfillmentOrderLine.Modify();
+                if OrderLine.Get(SalesShipmentHeader."Shpfy Order Id", SalesShipmentLine."Shpfy Order Line Id") then
+                    if (OrderLine."Location Id" = LocationId) and (OrderLine."Delivery Method Type" = DeliveryMethodType) then
+                        if FindFulfillmentOrderLine(SalesShipmentHeader, SalesShipmentLine, FulfillmentOrderLine) then begin
+                            FulfillmentOrderLine."Quantity to Fulfill" += Round(SalesShipmentLine.Quantity, 1, '=');
+                            FulfillmentOrderLine."Remaining Quantity" := FulfillmentOrderLine."Remaining Quantity" - Round(SalesShipmentLine.Quantity, 1, '=');
+                            FulfillmentOrderLine.Modify();
 
-                    if TempFulfillmentOrderLine.Get(FulfillmentOrderLine."Shopify Fulfillment Order Id", FulfillmentOrderLine."Shopify Fulfillm. Ord. Line Id") then begin
-                        TempFulfillmentOrderLine."Quantity to Fulfill" += Round(SalesShipmentLine.Quantity, 1, '=');
-                        TempFulfillmentOrderLine.Modify();
-                    end else begin
-                        TempFulfillmentOrderLine := FulfillmentOrderLine;
-                        TempFulfillmentOrderLine."Quantity to Fulfill" := Round(SalesShipmentLine.Quantity, 1, '=');
-                        TempFulfillmentOrderLine.Insert();
-                    end;
-                end;
+                            if TempFulfillmentOrderLine.Get(FulfillmentOrderLine."Shopify Fulfillment Order Id", FulfillmentOrderLine."Shopify Fulfillm. Ord. Line Id") then begin
+                                TempFulfillmentOrderLine."Quantity to Fulfill" += Round(SalesShipmentLine.Quantity, 1, '=');
+                                TempFulfillmentOrderLine.Modify();
+                            end else begin
+                                TempFulfillmentOrderLine := FulfillmentOrderLine;
+                                TempFulfillmentOrderLine."Quantity to Fulfill" := Round(SalesShipmentLine.Quantity, 1, '=');
+                                TempFulfillmentOrderLine.Insert();
+                            end;
+                        end;
             until SalesShipmentLine.Next() = 0;
 
             TempFulfillmentOrderLine.Reset();
             if TempFulfillmentOrderLine.FindSet() then begin
                 GraphQuery.Append('{"query": "mutation {fulfillmentCreateV2( fulfillment: {');
-                GraphQuery.Append('notifyCustomer: true, ');
+                if GetNotifyCustomer(Shop, SalesShipmentHeader, LocationId) then
+                    GraphQuery.Append('notifyCustomer: true, ')
+                else
+                    GraphQuery.Append('notifyCustomer: false, ');
                 if SalesShipmentHeader."Package Tracking No." <> '' then begin
                     GraphQuery.Append('trackingInfo: {');
                     if SalesShipmentHeader."Shipping Agent Code" <> '' then begin
@@ -116,7 +128,7 @@ codeunit 30190 "Shpfy Export Shipments"
                     GraphQuery.Append('number: \"');
                     GraphQuery.Append(SalesShipmentHeader."Package Tracking No.");
                     GraphQuery.Append('\",');
-                    ShippingEvents.BeforeRetrieveTrackingUrl(SalesShipmentHeader, TrackingUrl, IsHandled);
+                    ShippingEvents.OnBeforeRetrieveTrackingUrl(SalesShipmentHeader, TrackingUrl, IsHandled);
                     if not IsHandled then
                         if ShippingAgent."Internet Address" <> '' then
                             TrackingUrl := ShippingAgent.GetTrackingInternetAddr(SalesShipmentHeader."Package Tracking No.");
@@ -148,11 +160,11 @@ codeunit 30190 "Shpfy Export Shipments"
                     GraphQuery.Append(Format(TempFulfillmentOrderLine."Shopify Fulfillm. Ord. Line Id"));
                     GraphQuery.Append('\",');
                     GraphQuery.Append('quantity: ');
-                    GraphQuery.Append(Format(TempFulfillmentOrderLine."Quantity to Fulfill"));
+                    GraphQuery.Append(Format(TempFulfillmentOrderLine."Quantity to Fulfill", 0, 9));
                     GraphQuery.Append('}');
                 until TempFulfillmentOrderLine.Next() = 0;
                 GraphQuery.Append(']}]})');
-                GraphQuery.Append('{fulfillment { legacyResourceId name createdAt updatedAt deliveredAt displayStatus estimatedDeliveryAt status totalQuantity location { legacyResourceId } trackingInfo { number url company } service { serviceName type shippingMethods { code label }} fulfillmentLineItems(first: 10) { pageInfo { endCursor hasNextPage } nodes { id quantity originalTotalSet { presentmentMoney { amount } shopMoney { amount }} lineItem { id product { isGiftCard }}}}}}}"}');
+                GraphQuery.Append('{fulfillment { legacyResourceId name createdAt updatedAt deliveredAt displayStatus estimatedDeliveryAt status totalQuantity location { legacyResourceId } trackingInfo { number url company } service { serviceName type shippingMethods { code label }} fulfillmentLineItems(first: 10) { pageInfo { endCursor hasNextPage } nodes { id quantity originalTotalSet { presentmentMoney { amount } shopMoney { amount }} lineItem { id product { isGiftCard }}}}}, userErrors {field,message}}}"}');
             end;
             exit(GraphQuery.ToText());
         end;
@@ -167,9 +179,22 @@ codeunit 30190 "Shpfy Export Shipments"
             FulfillmentOrderLine.SetRange("Shopify Order Id", OrderLine."Shopify Order Id");
             FulfillmentOrderLine.SetRange("Shopify Variant Id", OrderLine."Shopify Variant Id");
             FulfillmentOrderLine.SetRange("Shopify Location Id", OrderLine."Location Id");
+            FulfillmentOrderLine.SetRange("Delivery Method Type", OrderLine."Delivery Method Type");
             FulfillmentOrderLine.SetFilter("Remaining Quantity", '>=%1', Round(SalesShipmentLine.Quantity, 1, '='));
             if FulfillmentOrderLine.FindFirst() then
                 exit(true);
         end;
+    end;
+
+    local procedure GetNotifyCustomer(Shop: Record "Shpfy Shop"; SalesShipmmentHeader: Record "Sales Shipment Header"; LocationId: BigInteger): Boolean
+    var
+        IsHandled: Boolean;
+        NotifyCustomer: Boolean;
+    begin
+        ShippingEvents.OnGetNotifyCustomer(SalesShipmmentHeader, LocationId, NotifyCustomer, IsHandled);
+        if IsHandled then
+            exit(NotifyCustomer)
+        else
+            exit(Shop."Send Shipping Confirmation");
     end;
 }

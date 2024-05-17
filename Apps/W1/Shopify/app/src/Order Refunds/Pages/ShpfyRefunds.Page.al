@@ -1,10 +1,12 @@
+namespace Microsoft.Integration.Shopify;
+
 page 30147 "Shpfy Refunds"
 {
     ApplicationArea = All;
     Caption = 'Shopify Refunds';
     PageType = List;
     SourceTable = "Shpfy Refund Header";
-    UsageCategory = Documents;
+    UsageCategory = Lists;
     Editable = false;
     CardPageId = "Shpfy Refund";
     SourceTableView = sorting("Created At") order(descending);
@@ -95,9 +97,11 @@ page 30147 "Shpfy Refunds"
 
                 trigger OnAction()
                 var
+                    RefundsAPI: Codeunit "Shpfy Refunds API";
                     IReturnRefundProcess: Interface "Shpfy IReturnRefund Process";
                     ErrorInfo: ErrorInfo;
                 begin
+                    RefundsAPI.VerifyRefundCanCreateCreditMemo(Rec."Refund Id");
                     IReturnRefundProcess := "Shpfy ReturnRefund ProcessType"::"Auto Create Credit Memo";
                     if IReturnRefundProcess.CanCreateSalesDocumentFor("Shpfy Source Document Type"::Refund, Rec."Refund Id", ErrorInfo) then
                         IReturnRefundProcess.CreateSalesDocument("Shpfy Source Document Type"::Refund, Rec."Refund Id")

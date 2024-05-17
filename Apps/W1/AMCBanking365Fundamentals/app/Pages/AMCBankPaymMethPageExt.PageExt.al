@@ -1,3 +1,11 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Bank.Payment;
+
+using Microsoft.Bank.BankAccount;
+
 pageextension 20104 "AMC Bank Paym. Meth. Page Ext" extends "Payment Methods"
 {
 
@@ -20,7 +28,6 @@ pageextension 20104 "AMC Bank Paym. Meth. Page Ext" extends "Payment Methods"
         IsAMCFundamentalsEnabled: Boolean;
 
     trigger OnOpenPage()
-    var
     begin
         IsAMCFundamentalsEnabled := AMCBankingMgt.IsAMCFundamentalsEnabled();
     end;

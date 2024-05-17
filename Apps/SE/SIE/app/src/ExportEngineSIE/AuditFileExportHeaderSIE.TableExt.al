@@ -1,3 +1,11 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AuditFileExport;
+
+using Microsoft.Finance.GeneralLedger.Account;
+
 tableextension 5314 "Audit File Export Header SIE" extends "Audit File Export Header"
 {
     fields
@@ -12,29 +20,18 @@ tableextension 5314 "Audit File Export Header SIE" extends "Audit File Export He
         }
         modify("Audit File Export Format")
         {
-#if CLEAN22
-            trigger OnBeforeValidate()
-            var
-                AuditFileExportFormatSetup: Record "Audit File Export Format Setup";
-            begin
-                if Rec."Audit File Export Format" = Rec."Audit File Export Format"::SIE then
-                    if not AuditFileExportFormatSetup.Get(Rec."Audit File Export Format"::SIE) then
-                        Error(AuditExportFormatSetupNotExistMsg);
-            end;
-#else
             trigger OnBeforeValidate()
             var
                 SIEManagement: Codeunit "SIE Management";
             begin
-                if Rec."Audit File Export Format" = Rec."Audit File Export Format"::SIE then
-                    if not SIEManagement.IsFeatureEnabled() then
-                        Error(FeatureNotEnabledMsg);
+                if Rec."Audit File Export Format" = Enum::"Audit File Export Format"::SIE then
+                    if not SIEManagement.SIEFormatSetupExists() then
+                        Error(AuditExportFormatSetupNotExistMsg);
             end;
-#endif
 
             trigger OnAfterValidate()
             begin
-                if Rec."Audit File Export Format" = Rec."Audit File Export Format"::SIE then begin
+                if Rec."Audit File Export Format" = Enum::"Audit File Export Format"::SIE then begin
                     Rec.Validate("Split By Month", false);
                     Rec.Validate("Split By Date", false);
                     Rec.Validate("Create Multiple Zip Files", false);
@@ -99,11 +96,7 @@ tableextension 5314 "Audit File Export Header SIE" extends "Audit File Export He
     var
         FilterStringParseErr: label 'Could not parse the filter expression. Use the lookup action, or type a string in the following format: "Account Type: Total, Account Category: Assets".';
         TooManyFiltersErr: label 'You have selected too many filters for G/L accounts. Open the filter page again and set fewer filters.';
-#if CLEAN22
         AuditExportFormatSetupNotExistMsg: label 'Audit File Export Format Setup does not exist for the SIE export format. Open the SIE Audit File Export Setup Guide page and follow the instructions.';
-#else
-        FeatureNotEnabledMsg: label 'SIE feature is not enabled yet in your Business Central. An administrator can enable the feature on the Feature Management page.';
-#endif
         FilterTxt: label '%1=FILTER(%2)', Locked = true;
         WhereTxt: label '%1 WHERE(%2)', Locked = true;
 

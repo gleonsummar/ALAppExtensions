@@ -1,3 +1,13 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.TaxEngine.PostingHandler;
+
+using Microsoft.Finance.TaxEngine.Core;
+using Microsoft.Finance.TaxEngine.TaxTypeHandler;
+using Microsoft.Finance.TaxEngine.UseCaseBuilder;
+
 codeunit 20343 "Tax Posting Buffer Mgmt."
 {
     SingleInstance = true;
@@ -305,6 +315,8 @@ codeunit 20343 "Tax Posting Buffer Mgmt."
         TempTransactionValue.Reset();
         NextID := TempTransactionValue.Count();
 
+        TaxTransactionValue.SetCurrentKey("Tax Record ID", "Tax Type");
+        TaxTransactionValue.LoadFields("Tax Record ID", "Case ID");
         TaxTransactionValue.SetRange("Tax Record ID", TempTaxPostingBuffer."Tax Record ID");
         TaxTransactionValue.SetRange("Case ID", TempTaxPostingBuffer."Case ID");
         if TaxTransactionValue.FindSet() then

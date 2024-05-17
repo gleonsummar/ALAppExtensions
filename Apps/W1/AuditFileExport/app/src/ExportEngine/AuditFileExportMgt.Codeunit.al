@@ -1,3 +1,15 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AuditFileExport;
+
+using Microsoft.Utilities;
+using System.Environment;
+using System.IO;
+using System.Reflection;
+using System.Utilities;
+
 codeunit 5261 "Audit File Export Mgt."
 {
     TableNo = "Audit File Export Header";
@@ -51,6 +63,7 @@ codeunit 5261 "Audit File Export Mgt."
         AuditFileExportHeader.Validate(Status, AuditFileExportHeader.Status::"In Progress");
         AuditFileExportHeader.Validate("Execution Start Date/Time", TypeHelper.GetCurrentDateTimeInUserTimeZone());
         AuditFileExportHeader.Validate("Execution End Date/Time", 0DT);
+        OnBeforeModifyAuditFileExportHeaderToStartExport(AuditFileExportHeader);
         AuditFileExportHeader.Modify(true);
         Commit();
 
@@ -505,10 +518,10 @@ codeunit 5261 "Audit File Export Mgt."
     begin
         SizeInMbytes := Round(AuditFile."File Content".Length / (1024 * 1024));
         if SizeInMbytes <= 1024 then
-            exit(StrSubstNo(TwoStringsTxt, Format(SizeInMbytes), ' Mb'));
+            exit(StrSubstNo(TwoStringsTxt, Format(SizeInMbytes), ' MB'));
 
         SizeInGbytes := Round(SizeInMbytes / 1024);
-        exit(StrSubstNo(TwoStringsTxt, Format(SizeInGbytes), ' Gb'));
+        exit(StrSubstNo(TwoStringsTxt, Format(SizeInGbytes), ' GB'));
     end;
 
     procedure DownloadFileFromExportHeader(AuditFileExportHeader: Record "Audit File Export Header")
@@ -646,6 +659,13 @@ codeunit 5261 "Audit File Export Mgt."
         NotifyAuditFileExportLineCompleted(AuditFileExportHeader);
     end;
 
+    procedure UpdateProgressBarOnAuditFileExportLine(var AuditFileExportLine: Record "Audit File Export Line"; ProgressFraction: Integer)
+    begin
+        AuditFileExportLine.Get(AuditFileExportLine.ID, AuditFileExportLine."Line No.");
+        AuditFileExportLine.Validate(Progress, ProgressFraction * 10000);
+        AuditFileExportLine.Modify(true);
+    end;
+
     local procedure IsExportSessionActive(AuditFileExportLine: Record "Audit File Export Line"): Boolean
     var
         ActiveSession: Record "Active Session";
@@ -721,6 +741,12 @@ codeunit 5261 "Audit File Export Mgt."
     [IntegrationEvent(false, false)]
     local procedure OnAuditFileExportLineCompleted(var AuditFileExportHeader: Record "Audit File Export Header")
     begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnBeforeModifyAuditFileExportHeaderToStartExport(var AuditFileExportHeader: Record "Audit File Export Header")
+    begin
+
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Audit File Export Mgt.", 'OnAuditFileExportLineCompleted', '', false, false)]

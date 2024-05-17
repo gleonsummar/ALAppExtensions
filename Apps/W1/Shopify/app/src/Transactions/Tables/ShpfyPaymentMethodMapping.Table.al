@@ -1,3 +1,7 @@
+namespace Microsoft.Integration.Shopify;
+
+using Microsoft.Bank.BankAccount;
+
 /// <summary>
 /// Table Shpfy Payment Method Mapping (ID 30134).
 /// </summary>
@@ -38,6 +42,14 @@ table 30134 "Shpfy Payment Method Mapping"
             Caption = 'Priority';
             DataClassification = CustomerContent;
             MinValue = 0;
+            ObsoleteReason = 'Priority is no longer used.';
+#if not CLEAN25
+            ObsoleteState = Pending;
+            ObsoleteTag = '25.0';
+#else
+            ObsoleteState = Removed;
+            ObsoleteTag = '28.0';
+#endif
         }
     }
     keys

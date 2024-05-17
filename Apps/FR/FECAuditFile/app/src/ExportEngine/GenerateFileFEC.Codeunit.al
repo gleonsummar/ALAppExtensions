@@ -1,3 +1,23 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AuditFileExport;
+
+using Microsoft.Bank.BankAccount;
+using Microsoft.Bank.Ledger;
+using Microsoft.Finance.GeneralLedger.Account;
+using Microsoft.Finance.GeneralLedger.Journal;
+using Microsoft.Finance.GeneralLedger.Ledger;
+using Microsoft.Foundation.AuditCodes;
+using Microsoft.Purchases.Payables;
+using Microsoft.Purchases.Vendor;
+using Microsoft.Sales.Customer;
+using Microsoft.Sales.Receivables;
+using System.Reflection;
+using System.Telemetry;
+using System.Utilities;
+
 codeunit 10826 "Generate File FEC"
 {
     Access = Internal;
@@ -141,11 +161,19 @@ codeunit 10826 "Generate File FEC"
                 UpdateProgressDialog(1, Format(Round(Counter / CounterTotal * 100, 1)));
 
                 if GLEntry."Posting Date" <> ClosingDate(GLEntry."Posting Date") then
+#if not CLEAN23
+                    ProcessGLEntry(GLEntry, AuditFileExportHeader);
+#else
                     ProcessGLEntry(GLEntry);
+#endif
             until GLEntry.Next() = 0;
     end;
 
+#if not CLEAN23
+    local procedure ProcessGLEntry(var GLEntry: Record "G/L Entry"; AuditFileExportHeader: Record "Audit File Export Header")
+#else
     local procedure ProcessGLEntry(var GLEntry: Record "G/L Entry")
+#endif
     var
         BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
         GLRegister: Record "G/L Register";
@@ -214,7 +242,14 @@ codeunit 10826 "Generate File FEC"
 
         FindGLRegister(GLRegister, GLEntry."Entry No.");
 
-        WriteGLEntryToFile(GLEntry, GLRegister."No.", GLRegister."Creation Date", PartyNo, PartyName, FCYAmount, CurrencyCode, DocNoApplied, DateApplied);
+        WriteGLEntryToFile(
+            GLEntry,
+#if CLEAN23
+            GLEntry."Transaction No.",
+#else
+            GetProgressiveNo(GLRegister, GLEntry, AuditFileExportHeader),
+#endif
+            DT2Date(GLRegister.SystemCreatedAt), PartyNo, PartyName, FCYAmount, CurrencyCode, DocNoApplied, DateApplied);
     end;
 
     local procedure CalcDetailedBalanceBySource(GLAccountNo: Code[20]; SourceType: Enum "Gen. Journal Source Type"; SourceNo: Code[20]) TotalAmt: Decimal
@@ -254,7 +289,11 @@ codeunit 10826 "Generate File FEC"
             exit;
         end;
 
+#if not CLEAN24
         GLRegister.SetLoadFields("From Entry No.", "To Entry No.", "Creation Date");
+#else
+        GLRegister.SetLoadFields("From Entry No.", "To Entry No.");
+#endif
         if EntryNo > GLRegisterGlobal."To Entry No." then
             GLRegister.SetFilter("No.", '>%1', GLRegisterGlobal."No.");
         GLRegister.SetFilter("From Entry No.", '<=%1', EntryNo);
@@ -268,7 +307,10 @@ codeunit 10826 "Generate File FEC"
         GLRegisterGlobal."No." := GLRegister."No.";
         GLRegisterGlobal."From Entry No." := GLRegister."From Entry No.";
         GLRegisterGlobal."To Entry No." := GLRegister."To Entry No.";
+#if not CLEAN24
         GLRegisterGlobal."Creation Date" := GLRegister."Creation Date";
+#endif
+        GLRegisterGlobal.SystemCreatedAt := GLRegister.SystemCreatedAt;
     end;
 
     local procedure GetOpeningBalance(var GLAccount: Record "G/L Account"; PeriodStartDate: Date): Decimal
@@ -449,6 +491,15 @@ codeunit 10826 "Generate File FEC"
             DescriptionValue := SourceCode.Description;
         end;
     end;
+
+#if not CLEAN23
+    local procedure GetProgressiveNo(var GLRegister: Record "G/L Register"; var GLEntry: Record "G/L Entry"; AuditFileExportHeader: Record "Audit File Export Header"): Integer
+    begin
+        if AuditFileExportHeader."Use Transaction No." then
+            exit(GLEntry."Transaction No.");
+        exit(GLRegister."No.");
+    end;
+#endif
 
     local procedure GetTransPayRecEntriesCount(TransactionNo: Integer; PayRecAcc: Code[20]): Integer
     var
@@ -724,14 +775,14 @@ codeunit 10826 "Generate File FEC"
           '||');
     end;
 
-    local procedure WriteGLEntryToFile(var GLEntry: Record "G/L Entry"; GLRegisterNo: Integer; GLRegisterCreationDate: Date; PartyNo: Code[20]; PartyName: Text[100]; FCYAmount: Text[250]; CurrencyCode: Code[10]; DocNoSet: Text; DateApplied: Date)
+    local procedure WriteGLEntryToFile(var GLEntry: Record "G/L Entry"; ProgressiveNo: Integer; GLRegisterCreationDate: Date; PartyNo: Code[20]; PartyName: Text[100]; FCYAmount: Text[250]; CurrencyCode: Code[10]; DocNoSet: Text; DateApplied: Date)
     begin
         GLEntry.CalcFields(GLEntry."G/L Account Name");
 
         AppendLine(
           GetSourceCode(GLEntry) + '|' +
           GetSourceCodeDesc(GetSourceCode(GLEntry)) + '|' +
-          Format(GLRegisterNo) + '|' +
+          Format(ProgressiveNo) + '|' +
           DataHandlingFEC.GetFormattedDate(GLEntry."Posting Date") + '|' +
           GLEntry."G/L Account No." + '|' +
           GLEntry."G/L Account Name" + '|' +

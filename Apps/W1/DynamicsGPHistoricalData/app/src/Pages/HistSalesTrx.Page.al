@@ -1,8 +1,12 @@
+namespace Microsoft.DataMigration.GP.HistoricalData;
+
 page 41007 "Hist. Sales Trx."
 {
     PageType = Card;
     Caption = 'Historical Sales Transaction';
     SourceTable = "Hist. Sales Trx. Header";
+    ApplicationArea = All;
+    UsageCategory = None;
     Editable = false;
     DeleteAllowed = false;
     InsertAllowed = false;

@@ -1,3 +1,9 @@
+// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AutomaticAccounts;
+
 page 4850 "Automatic Account Header"
 {
     Caption = 'Automatic Account Groups';
@@ -34,18 +40,5 @@ page 4850 "Automatic Account Header"
     actions
     {
     }
-
-#if not CLEAN22
-    trigger OnInit()
-    var
-        AutoAccCodesPageMgt: Codeunit "Auto. Acc. Codes Page Mgt.";
-        AutoAccCodesFeatureMgt: Codeunit "Auto. Acc. Codes Feature Mgt.";
-    begin
-        if not AutoAccCodesFeatureMgt.IsEnabled() then begin
-            AutoAccCodesPageMgt.OpenAutoAccGroupListPage();
-            Error('');
-        end;
-    end;
-#endif
 }
 

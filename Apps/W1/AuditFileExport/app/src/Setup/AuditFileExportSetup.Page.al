@@ -1,3 +1,9 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AuditFileExport;
+
 page 5264 "Audit File Export Setup"
 {
     PageType = Card;
@@ -13,10 +19,23 @@ page 5264 "Audit File Export Setup"
         {
             group(General)
             {
-                field(AuditFileExportFormatCode; Rec."Audit File Export Format")
+                grid(Lines)
                 {
-                    ApplicationArea = Basic, Suite;
-                    ToolTip = 'Specifies the default audit file export format code.';
+                    group(GeneralInfo)
+                    {
+                        ShowCaption = false;
+
+                        field(AuditFileExportFormatCode; Rec."Audit File Export Format")
+                        {
+                            ApplicationArea = Basic, Suite;
+                            ToolTip = 'Specifies the default audit file export format code.';
+                        }
+                        field(StandardAccountType; Rec."Standard Account Type")
+                        {
+                            ApplicationArea = Basic, Suite;
+                            ToolTip = 'Specifies the default type of the standard general ledger accounts.';
+                        }
+                    }
                 }
             }
             group("Data Quality")

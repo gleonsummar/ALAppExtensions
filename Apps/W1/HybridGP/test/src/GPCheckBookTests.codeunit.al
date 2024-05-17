@@ -276,6 +276,47 @@ codeunit 139678 "GP Checkbook Tests"
 
     [Test]
     [TransactionModel(TransactionModel::AutoCommit)]
+    procedure TestBankSkipPosting()
+    var
+        BankAccount: Record "Bank Account";
+        BankAccountLedgerEntry: Record "Bank Account Ledger Entry";
+        GenJournalLine: Record "Gen. Journal Line";
+    begin
+        // [SCENARIO] CheckBooks are migrated from GP
+        // [GIVEN] There are no records in the BankAcount table
+        ClearTables();
+        GenJournalLine.DeleteAll();
+        BankAccountLedgerEntry.Reset();
+        BankAccountLedgerEntry.SetFilter("Bank Account No.", '%1|%2|%3|%4|%5', MyBankStr1Txt, MyBankStr2Txt, MyBankStr3Txt, MyBankStr4Txt, MyBankStr5Txt);
+        BankAccountLedgerEntry.DeleteAll();
+
+        // [GIVEN] Some records are created in the staging table
+        //  including reconciled bank transactions
+        CreateMoreCheckBookData();
+
+        // [GIVEN] Inactive checkbooks are NOT to be migrated
+        GPTestHelperFunctions.CreateConfigurationSettings();
+        GPCompanyAdditionalSettings.GetSingleInstance();
+        GPCompanyAdditionalSettings.Validate("Migrate Only Bank Master", false);
+        GPCompanyAdditionalSettings.Validate("Skip Posting Bank Batches", true);
+        GPCompanyAdditionalSettings.Modify();
+
+        GPTestHelperFunctions.InitializeMigration();
+
+        // [WHEN] Checkbook migration code is called
+        Migrate();
+
+        // [THEN] Active Bank Accounts are created
+        Assert.RecordCount(BankAccount, 3);
+
+        // [THEN] The GL Batch is created but not posted
+        Clear(GenJournalLine);
+        GenJournalLine.SetRange("Journal Batch Name", 'GPBANK');
+        Assert.AreEqual(false, GenJournalLine.IsEmpty(), 'Could not locate the bank batch.');
+    end;
+
+    [Test]
+    [TransactionModel(TransactionModel::AutoCommit)]
     procedure TestGPCheckbookMigrationBankTransfers()
     var
         BankAccount: Record "Bank Account";
@@ -283,6 +324,7 @@ codeunit 139678 "GP Checkbook Tests"
         GenJournalLine: Record "Gen. Journal Line";
         HelperFunctions: Codeunit "Helper Functions";
     begin
+#pragma warning disable AA0210
         // [SCENARIO] CheckBooks are migrated from GP
         // [GIVEN] There are no records in the BankAcount table
         ClearTables();
@@ -300,6 +342,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCompanyAdditionalSettings.Validate("Migrate Bank Module", true);
         GPCompanyAdditionalSettings.Validate("Migrate Only Bank Master", false);
         GPCompanyAdditionalSettings.Validate("Migrate Inactive Checkbooks", false);
+        GPCompanyAdditionalSettings.Validate("Skip Posting Bank Batches", false);
         GPCompanyAdditionalSettings.Modify();
 
         GPTestHelperFunctions.InitializeMigration();
@@ -347,7 +390,9 @@ codeunit 139678 "GP Checkbook Tests"
         BankAccountLedger.SetRange("Bank Account No.", UpperCase(MyBankStr4Txt));
         Assert.RecordCount(BankAccountLedger, 4);
 
-        BankAccountLedger.SetRange("Document No.", Format(525));
+        BankAccountLedger.SetRange("Document No.", 'XFR000000001');
+        BankAccountLedger.SetFilter(Amount, '>0');
+
         BankAccountLedger.FindFirst();
         Assert.AreEqual(100.00, BankAccountLedger.Amount, 'Transfer amount is wrong for Trx 520, MyBank4');
 
@@ -355,9 +400,11 @@ codeunit 139678 "GP Checkbook Tests"
         BankAccountLedger.SetRange("Bank Account No.", UpperCase(MyBankStr5Txt));
         Assert.RecordCount(BankAccountLedger, 7);
 
-        BankAccountLedger.SetRange("Document No.", Format(520));
+        BankAccountLedger.SetRange("Document No.", 'XFR000000001');
+        BankAccountLedger.SetFilter(Amount, '<0');
         BankAccountLedger.FindFirst();
         Assert.AreEqual(-100.00, BankAccountLedger.Amount, 'Transfer amount is wrong for Trx 520, MyBank5');
+#pragma warning restore AA0240
     end;
 
     [Test]
@@ -564,6 +611,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 395.59;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'APCheck1 - Vendor Check';
+        GPCheckbookTransactions.CMTrxNum := '100';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -574,6 +622,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 500.00;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'Deposit1';
+        GPCheckbookTransactions.CMTrxNum := '120';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -584,6 +633,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 250.00;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'Receipt1';
+        GPCheckbookTransactions.CMTrxNum := '125';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -594,6 +644,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 650.00;
         GPCheckbookTransactions.CMLinkID := '2000';
         GPCheckbookTransactions.DSCRIPTN := 'APCheck2 - NonVendor Check';
+        GPCheckbookTransactions.CMTrxNum := '130';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -604,6 +655,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 450.36;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'APCheck3 - Vendor Check';
+        GPCheckbookTransactions.CMTrxNum := '200';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -614,6 +666,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 450.36;
         GPCheckbookTransactions.CMLinkID := '3000';
         GPCheckbookTransactions.DSCRIPTN := 'APCheck4 - NonVendor Check';
+        GPCheckbookTransactions.CMTrxNum := '210';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -624,6 +677,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 200.00;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'APCheck5 - Vendor Check';
+        GPCheckbookTransactions.CMTrxNum := '400';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -634,6 +688,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 200.00;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'Withdrawl/Payroll Check1';
+        GPCheckbookTransactions.CMTrxNum := '410';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -644,6 +699,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 200.00;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'Receipt2';
+        GPCheckbookTransactions.CMTrxNum := '500';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -654,6 +710,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 200.00;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'IncreaseAdjustment1';
+        GPCheckbookTransactions.CMTrxNum := '505';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -664,6 +721,7 @@ codeunit 139678 "GP Checkbook Tests"
         GPCheckbookTransactions.TRXAMNT := 200.00;
         GPCheckbookTransactions.CMLinkID := '1000';
         GPCheckbookTransactions.DSCRIPTN := 'DecreaseAdjustment1';
+        GPCheckbookTransactions.CMTrxNum := '510';
         GPCheckbookTransactions.Insert(true);
 
         GPCheckbookTransactions.Init();
@@ -849,7 +907,7 @@ codeunit 139678 "GP Checkbook Tests"
         GLAccDataMigrationFacade: Codeunit "GL Acc. Data Migration Facade";
         GPAccountMigrator: Codeunit "GP Account Migrator";
     begin
-        GPAccountMigrator.OnMigrateGlAccount(GLAccDataMigrationFacade, GPAccount.RecordId());
-        GPAccountMigrator.OnMigrateAccountTransactions(GLAccDataMigrationFacade, GPAccount.RecordId());
+        GPAccountMigrator.MigrateAccountDetails(GPAccount, GLAccDataMigrationFacade);
+        GPAccountMigrator.GenerateGLTransactionBatches(GPAccount);
     end;
 }

@@ -1,3 +1,22 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.GST.Application;
+
+using Microsoft.Finance.Currency;
+using Microsoft.Finance.GeneralLedger.Journal;
+using Microsoft.Finance.GeneralLedger.Setup;
+using Microsoft.Finance.GST.Base;
+using Microsoft.Finance.GST.ReturnSettlement;
+using Microsoft.Finance.TaxBase;
+using Microsoft.Finance.TaxEngine.TaxTypeHandler;
+using Microsoft.Purchases.Document;
+using Microsoft.Purchases.Payables;
+using Microsoft.Sales.Document;
+using Microsoft.Sales.Receivables;
+using Microsoft.Service.Document;
+
 codeunit 18433 "GST Application Library"
 {
     var
@@ -1188,7 +1207,7 @@ codeunit 18433 "GST Application Library"
         DetailedGSTLedgerEntry.SetRange("Source No.", CVNo);
         DetailedGSTLedgerEntry.SetRange("Document Type", DetailedGSTLedgerEntry."Document Type"::Invoice);
         DetailedGSTLedgerEntry.SetRange("Document No.", DocumentNo);
-        DetailedGSTLedgerEntry.SetRange("GST Group Type", "GST Group Type"::Service);
+        DetailedGSTLedgerEntry.SetRange("GST Group Type", DetailedGSTLedgerEntry."GST Group Type"::Service);
         DetailedGSTLedgerEntry.SetRange("Associated Enterprises", false);
         exit(not DetailedGSTLedgerEntry.IsEmpty());
     end;
@@ -1756,7 +1775,6 @@ codeunit 18433 "GST Application Library"
     begin
         GSTApplicationBufferFinal.SetRange("Transaction Type", GSTApplicationBufferStage."Transaction Type");
         GSTApplicationBufferFinal.SetRange("Account No.", GSTApplicationBufferStage."Account No.");
-        GSTApplicationBufferFinal.SetRange("Transaction No.", GSTApplicationBufferStage."Transaction No.");
         GSTApplicationBufferFinal.SetRange("Original Document Type", GSTApplicationBufferStage."Original Document Type");
         GSTApplicationBufferFinal.SetRange("Original Document No.", GSTApplicationBufferStage."Original Document No.");
         GSTApplicationBufferFinal.SetRange("GST Group Code", GSTApplicationBufferStage."GST Group Code");

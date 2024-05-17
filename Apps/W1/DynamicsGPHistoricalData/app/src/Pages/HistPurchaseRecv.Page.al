@@ -1,8 +1,12 @@
+namespace Microsoft.DataMigration.GP.HistoricalData;
+
 page 41013 "Hist. Purchase Recv."
 {
     PageType = Card;
     Caption = 'Historical Purchase Recv. Transaction';
     SourceTable = "Hist. Purchase Recv. Header";
+    ApplicationArea = All;
+    UsageCategory = None;
     Editable = false;
     DeleteAllowed = false;
     InsertAllowed = false;

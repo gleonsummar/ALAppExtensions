@@ -1,3 +1,24 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.GST.Subcontracting;
+
+using Microsoft.Finance.TaxEngine.TaxTypeHandler;
+using Microsoft.Finance.TaxEngine.UseCaseBuilder;
+using Microsoft.Inventory.Journal;
+using Microsoft.Inventory.Ledger;
+using Microsoft.Inventory.Posting;
+using Microsoft.Inventory.Requisition;
+using Microsoft.Inventory.Tracking;
+using Microsoft.Manufacturing.Document;
+using Microsoft.Purchases.Document;
+using Microsoft.Purchases.History;
+using Microsoft.Purchases.Posting;
+using Microsoft.Purchases.Setup;
+using Microsoft.Purchases.Vendor;
+using Microsoft.Warehouse.Document;
+
 codeunit 18469 "Subcontracting Subscribers"
 {
     var
@@ -263,6 +284,28 @@ codeunit 18469 "Subcontracting Subscribers"
                 if not Confirm(QutstandingQuantityErr, true, PurchaseLine."Document No.") then
                     Error('Order not deleted');
         end;
+    end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Purchase Line", 'OnAfterValidateEvent', 'Qty. to Invoice', false, false)]
+    local procedure OnValidateQtyToInvoiceSubcon(var Rec: Record "Purchase Line")
+    var
+        InvalidQtyErr: label 'Quantity should be less than or equal to outstanding quantity.';
+    begin
+        if (Rec.Subcontracting) and
+            (Rec."Prod. Order No." <> '') and
+            (Rec."Prod. Order Line No." <> 0) then
+            if Rec."Qty. to Invoice" > Rec.Quantity then
+                Error(InvalidQtyErr);
+    end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Purchase Line", 'OnAfterInitOutstandingQty', '', false, false)]
+    local procedure OnAfterInitOutstandingQty(var PurchaseLine: Record "Purchase Line")
+    begin
+        if (PurchaseLine.Subcontracting) and
+            (PurchaseLine."Prod. Order No." <> '') and
+            (PurchaseLine."Prod. Order Line No." <> 0) then
+            if PurchaseLine."Outstanding Qty. (Base)" <> 0 then
+                PurchaseLine."Outstanding Qty. (Base)" := 0;
     end;
 
     local procedure ValidateDeliveryChallanCreatedForOrder(PurchHeader: Record "Purchase Header")

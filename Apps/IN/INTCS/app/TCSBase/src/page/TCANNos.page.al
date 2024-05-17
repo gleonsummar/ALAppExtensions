@@ -1,3 +1,11 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.TCS.TCSBase;
+
+using System.Integration.Excel;
+
 page 18809 "T.C.A.N. Nos."
 {
     PageType = List;
@@ -45,7 +53,7 @@ page 18809 "T.C.A.N. Nos."
                     EditinExcel: Codeunit "Edit in Excel";
                     EditinExcelFilters: Codeunit "Edit in Excel Filters";
                 begin
-                    EditinExcelFilters.AddField('Code', Enum::"Edit in Excel Filter Type"::Equal, Rec.Code, Enum::"Edit in Excel Edm Type"::"Edm.String");
+                    EditinExcelFilters.AddFieldV2('Code', Enum::"Edit in Excel Filter Type"::Equal, Rec.Code, Enum::"Edit in Excel Edm Type"::"Edm.String");
                     EditinExcel.EditPageInExcel('T.C.A.N. No.', Page::"T.C.A.N. Nos.", EditinExcelFilters);
                 end;
             }

@@ -26,6 +26,7 @@ codeunit 4810 IntrastatReportManagement
         SupplementaryUnitUpdateNotificationNameTxt: Label 'Notify the user about the %1 update.', Comment = '%1 - Supplementary Unit of Measure caption';
         SupplementaryUnitUpdateNotificationDescriptionTxt: Label 'Alert users about the update of %1 during %2 change.', Comment = '%1 - Supplementary Unit of Measure caption, %2 - Tariff Number caption';
         SupplementaryUnitUpdateNotificationTxt: Label '%1 was updated, due to change of %2.', Comment = '%1 - Supplementary Unit of Measure caption, %2 - Tariff Number caption';
+        ImportDefaultIntrastatDataExchDefConfirmQst: Label 'This will create the default Intrastat %1 . \\All existing default Intrastat %1 will be overwritten.\\Do you want to continue?', Comment = '%1 - Data Exchange Definition caption';
         UserDisabledNotificationTxt: Label 'The user disabled notification %1.', Locked = true;
         IntrastatFeatureKeyIdTok: Label 'ReplaceIntrastat', Locked = true;
         IntrastatFeatureAwarenessNotificationIdTok: Label 'dcd4e71a-8c6a-44fc-9642-54f931e5e7d9', Locked = true;
@@ -34,6 +35,8 @@ codeunit 4810 IntrastatReportManagement
         IntrastatTelemetryCategoryTok: Label 'AL Intrastat', Locked = true;
         LearnMoreLinkTok: Label 'https://go.microsoft.com/fwlink/?linkid=2204541', Locked = true;
         RangeCrossingErr: Label 'There is a conflict in checklist rules for ''%1'' in ''%2'' (field must be both blank and not blank). Please review filters in %3.', Comment = '%1=caption of a field, %2=key of record, %3=caption of report checklist page';
+        DataExchangeXMLTxt: Label '<?xml version="1.0" encoding="UTF-8" standalone="no"?><root><DataExchDef Code="INTRA-2022" Name="Intrastat Report 2022" Type="5" ReadingWritingXMLport="1231" ExternalDataHandlingCodeunit="4813" ColumnSeparator="1" FileType="1" ReadingWritingCodeunit="1276"><DataExchLineDef LineType="1" Code="DEFAULT" Name="DEFAULT" ColumnCount="9"><DataExchColumnDef ColumnNo="1" Name="Tariff No." Show="false" DataType="0" Length="8" TextPaddingRequired="true" PadCharacter="0" Justification="0" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="2" Name="Country/Region Code" Show="false" DataType="0" Length="3" TextPaddingRequired="true" PadCharacter="&amp;#032;" Justification="1" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="3" Name="Transaction Type" Show="false" DataType="0" Length="2" TextPaddingRequired="true" Justification="1" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="4" Name="Quantity" Show="false" DataType="0" Length="11" TextPaddingRequired="true" PadCharacter="0" Justification="0" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="5" Name="Total Weight" Show="false" DataType="0" Length="10" TextPaddingRequired="true" PadCharacter="0" Justification="0" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="6" Name="Statistical Value" Show="false" DataType="0" Length="11" TextPaddingRequired="true" PadCharacter="0" Justification="0" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="7" Name="Internal Ref. No." Show="false" DataType="0" Length="30" TextPaddingRequired="true" PadCharacter="&amp;#032;" Justification="1" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="8" Name="Partner Tax ID" Show="false" DataType="0" Length="20" TextPaddingRequired="true" PadCharacter="&amp;#032;" Justification="1" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="9" Name="Country/Region of Origin Code" Show="false" DataType="0" Length="3" TextPaddingRequired="true" PadCharacter="&amp;#032;" Justification="1" UseNodeNameAsValue="false" /><DataExchMapping TableId="4812" Name="" KeyIndex="5" MappingCodeunit="1269"><DataExchFieldMapping ColumnNo="1" FieldID="5" Optional="true" TransformationRule="TRIMALL"><TransformationRules><Code>TRIMALL</Code><Description>Removes all spaces</Description><TransformationType>5</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules></DataExchFieldMapping><DataExchFieldMapping ColumnNo="2" FieldID="7" Optional="true" /><DataExchFieldMapping ColumnNo="3" FieldID="8" Optional="true" /><DataExchFieldMapping ColumnNo="4" FieldID="14" Optional="true" TransformationRule="ROUNDTOINT"><TransformationRules><Code>ALPHANUMERIC_ONLY</Code><Description>Alphanumeric Text Only</Description><TransformationType>7</TransformationType><FindValue /><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules><TransformationRules><Code>ROUNDTOINT</Code><Description>Round to integer</Description><TransformationType>14</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule>ALPHANUMERIC_ONLY</NextTransformationRule><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>1.00</Precision><Direction>=</Direction></TransformationRules></DataExchFieldMapping><DataExchFieldMapping ColumnNo="5" FieldID="21" Optional="true" TransformationRule="ROUNDUPTOINT"><TransformationRules><Code>ALPHANUMERIC_ONLY</Code><Description>Alphanumeric Text Only</Description><TransformationType>7</TransformationType><FindValue /><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules><TransformationRules><Code>ROUNDUPTOINT</Code><Description>Round up to integer</Description><TransformationType>14</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule>ALPHANUMERIC_ONLY</NextTransformationRule><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>1.00</Precision><Direction>&gt;</Direction></TransformationRules></DataExchFieldMapping><DataExchFieldMapping ColumnNo="6" FieldID="17" Optional="true" TransformationRule="ROUNDTOINT"><TransformationRules><Code>ALPHANUMERIC_ONLY</Code><Description>Alphanumeric Text Only</Description><TransformationType>7</TransformationType><FindValue /><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules><TransformationRules><Code>ROUNDTOINT</Code><Description>Round to integer</Description><TransformationType>14</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule>ALPHANUMERIC_ONLY</NextTransformationRule><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>1.00</Precision><Direction>=</Direction></TransformationRules></DataExchFieldMapping><DataExchFieldMapping ColumnNo="7" FieldID="23" Optional="true" /><DataExchFieldMapping ColumnNo="8" FieldID="29" Optional="true" /><DataExchFieldMapping ColumnNo="9" FieldID="24" Optional="true" TransformationRule="EUCOUNTRYCODELOOKUP"><TransformationRules><Code>EUCOUNTRYCODELOOKUP</Code><Description>EU Country Lookup</Description><TransformationType>13</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>9</TableID><SourceFieldID>1</SourceFieldID><TargetFieldID>7</TargetFieldID><FieldLookupRule>1</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules></DataExchFieldMapping><DataExchFieldGrouping FieldID="3" /><DataExchFieldGrouping FieldID="5" /><DataExchFieldGrouping FieldID="7" /><DataExchFieldGrouping FieldID="8" /><DataExchFieldGrouping FieldID="9" /><DataExchFieldGrouping FieldID="24" /><DataExchFieldGrouping FieldID="29" /></DataExchMapping></DataExchLineDef></DataExchDef></root>',
+                            Locked = true; // will be replaced with file import when available        
 
     procedure GetIntrastatBaseCountryCode(ItemLedgEntry: Record "Item Ledger Entry") CountryCode: Code[10]
     var
@@ -42,8 +45,14 @@ codeunit 4810 IntrastatReportManagement
         ReturnRcptHeader: Record "Return Receipt Header";
         PurchRcptHeader: Record "Purch. Rcpt. Header";
         ReturnShptHeader: Record "Return Shipment Header";
+        IsHandled: Boolean;
     begin
         IntrastatReportSetup.Get();
+
+        IsHandled := false;
+        OnBeforeGetIntrastatBaseCountryCode(ItemLedgEntry, IntrastatReportSetup, CountryCode, IsHandled);
+        if IsHandled then
+            exit(CountryCode);
 
         CountryCode := ItemLedgEntry."Country/Region Code";
 
@@ -62,10 +71,10 @@ codeunit 4810 IntrastatReportManagement
                 if ReturnRcptHeader.Get(ItemLedgEntry."Document No.") then
                     case IntrastatReportSetup."Shipments Based On" of
                         IntrastatReportSetup."Shipments Based On"::"Ship-to Country":
-                            if ReturnRcptHeader."Rcvd-from Country/Region Code" <> '' then
-                                CountryCode := ReturnRcptHeader."Rcvd-from Country/Region Code"
+                            if ReturnRcptHeader."Rcvd.-from Count./Region Code" <> '' then
+                                CountryCode := ReturnRcptHeader."Rcvd.-from Count./Region Code"
                             else
-                                CountryCode := ReturnRcptHeader."Sell-to Country/Region Code";
+                                CountryCode := ReturnRcptHeader."Ship-to Country/Region Code";
                         IntrastatReportSetup."Shipments Based On"::"Sell-to Country":
                             CountryCode := ReturnRcptHeader."Sell-to Country/Region Code";
                         IntrastatReportSetup."Shipments Based On"::"Bill-to Country":
@@ -173,6 +182,7 @@ codeunit 4810 IntrastatReportManagement
                                 CountryCode := SalesCrMemoHeader."Bill-to Country/Region Code";
                         end;
             end;
+        OnAfterGetIntrastatBaseCountryCodeFromFAEntry(FALedgerEntry, IntrastatReportSetup, CountryCode);
     end;
 
     procedure GetOriginalCurrency(FALedgerEntry: Record "FA Ledger Entry") CurrencyCode: Code[10]
@@ -625,7 +635,7 @@ codeunit 4810 IntrastatReportManagement
                 DataExch."Data Exch. Def Code" := DataExchMapping."Data Exch. Def Code";
                 DataExch."Data Exch. Line Def Code" := DataExchMapping."Data Exch. Line Def Code";
                 DataExch."Table Filters".CreateOutStream(OutStreamFilters);
-                OutStreamFilters.WriteText(IntrastatReportLine.GetView());
+                OutStreamFilters.WriteText(IntrastatReportLine.GetView(false));
                 if DataExch.Insert(true) then
                     DataExch.ExportFromDataExch(DataExchMapping);
                 DataExch.Modify(true);
@@ -742,19 +752,10 @@ codeunit 4810 IntrastatReportManagement
 
     procedure InitSetup(var IntrastatReportSetup: Record "Intrastat Report Setup")
     var
-        DataExchDef: Record "Data Exch. Def";
         IntrastatReportChecklist: Record "Intrastat Report Checklist";
-#if not CLEAN22
-        IntrastatSetup: Record "Intrastat Setup";
-#endif
         NoSeries: Record "No. Series";
         NoSeriesLine: Record "No. Series Line";
-        TempBlob: Codeunit "Temp Blob";
-        XMLOutStream: OutStream;
-        XMLInStream: InStream;
         IsHandled: Boolean;
-        DataExchangeXMLTxt: Label '<?xml version="1.0" encoding="UTF-8" standalone="no"?><root><DataExchDef Code="INTRA-2022" Name="Intrastat Report 2022" Type="5" ReadingWritingXMLport="1231" ExternalDataHandlingCodeunit="4813" ColumnSeparator="1" FileType="1" ReadingWritingCodeunit="1276"><DataExchLineDef LineType="1" Code="DEFAULT" Name="DEFAULT" ColumnCount="9"><DataExchColumnDef ColumnNo="1" Name="Tariff No." Show="false" DataType="0" Length="8" TextPaddingRequired="true" PadCharacter="0" Justification="0" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="2" Name="Country/Region Code" Show="false" DataType="0" Length="3" TextPaddingRequired="true" PadCharacter="&amp;#032;" Justification="1" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="3" Name="Transaction Type" Show="false" DataType="0" Length="2" TextPaddingRequired="true" Justification="1" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="4" Name="Quantity" Show="false" DataType="0" Length="11" TextPaddingRequired="true" PadCharacter="0" Justification="0" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="5" Name="Total Weight" Show="false" DataType="0" Length="10" TextPaddingRequired="true" PadCharacter="0" Justification="0" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="6" Name="Statistical Value" Show="false" DataType="0" Length="11" TextPaddingRequired="true" PadCharacter="0" Justification="0" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="7" Name="Internal Ref. No." Show="false" DataType="0" Length="30" TextPaddingRequired="true" PadCharacter="&amp;#032;" Justification="1" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="8" Name="Partner Tax ID" Show="false" DataType="0" Length="20" TextPaddingRequired="true" PadCharacter="&amp;#032;" Justification="1" UseNodeNameAsValue="false" /><DataExchColumnDef ColumnNo="9" Name="Country/Region of Origin Code" Show="false" DataType="0" Length="3" TextPaddingRequired="true" PadCharacter="&amp;#032;" Justification="1" UseNodeNameAsValue="false" /><DataExchMapping TableId="4812" Name="" KeyIndex="5" MappingCodeunit="1269"><DataExchFieldMapping ColumnNo="1" FieldID="5" Optional="true" TransformationRule="TRIMALL"><TransformationRules><Code>TRIMALL</Code><Description>Removes all spaces</Description><TransformationType>5</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules></DataExchFieldMapping><DataExchFieldMapping ColumnNo="2" FieldID="7" Optional="true" /><DataExchFieldMapping ColumnNo="3" FieldID="8" Optional="true" /><DataExchFieldMapping ColumnNo="4" FieldID="14" Optional="true" TransformationRule="ROUNDTOINT"><TransformationRules><Code>ALPHANUMERIC_ONLY</Code><Description>Alphanumeric Text Only</Description><TransformationType>7</TransformationType><FindValue /><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules><TransformationRules><Code>ROUNDTOINT</Code><Description>Round to integer</Description><TransformationType>14</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule>ALPHANUMERIC_ONLY</NextTransformationRule><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>1.00</Precision><Direction>=</Direction></TransformationRules></DataExchFieldMapping><DataExchFieldMapping ColumnNo="5" FieldID="21" Optional="true" TransformationRule="ROUNDUPTOINT"><TransformationRules><Code>ALPHANUMERIC_ONLY</Code><Description>Alphanumeric Text Only</Description><TransformationType>7</TransformationType><FindValue /><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules><TransformationRules><Code>ROUNDUPTOINT</Code><Description>Round up to integer</Description><TransformationType>14</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule>ALPHANUMERIC_ONLY</NextTransformationRule><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>1.00</Precision><Direction>&gt;</Direction></TransformationRules></DataExchFieldMapping><DataExchFieldMapping ColumnNo="6" FieldID="17" Optional="true" TransformationRule="ROUNDTOINT"><TransformationRules><Code>ALPHANUMERIC_ONLY</Code><Description>Alphanumeric Text Only</Description><TransformationType>7</TransformationType><FindValue /><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules><TransformationRules><Code>ROUNDTOINT</Code><Description>Round to integer</Description><TransformationType>14</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule>ALPHANUMERIC_ONLY</NextTransformationRule><TableID>0</TableID><SourceFieldID>0</SourceFieldID><TargetFieldID>0</TargetFieldID><FieldLookupRule>0</FieldLookupRule><Precision>1.00</Precision><Direction>=</Direction></TransformationRules></DataExchFieldMapping><DataExchFieldMapping ColumnNo="7" FieldID="23" Optional="true" /><DataExchFieldMapping ColumnNo="8" FieldID="29" Optional="true" /><DataExchFieldMapping ColumnNo="9" FieldID="24" Optional="true" TransformationRule="EUCOUNTRYCODELOOKUP"><TransformationRules><Code>EUCOUNTRYCODELOOKUP</Code><Description>EU Country Lookup</Description><TransformationType>13</TransformationType><FindValue>&amp;#032;</FindValue><ReplaceValue /><StartPosition>0</StartPosition><Length>0</Length><DataFormat /><DataFormattingCulture /><NextTransformationRule /><TableID>9</TableID><SourceFieldID>1</SourceFieldID><TargetFieldID>7</TargetFieldID><FieldLookupRule>1</FieldLookupRule><Precision>0.00</Precision><Direction /></TransformationRules></DataExchFieldMapping><DataExchFieldGrouping FieldID="3" /><DataExchFieldGrouping FieldID="5" /><DataExchFieldGrouping FieldID="7" /><DataExchFieldGrouping FieldID="8" /><DataExchFieldGrouping FieldID="9" /><DataExchFieldGrouping FieldID="24" /><DataExchFieldGrouping FieldID="29" /></DataExchMapping></DataExchLineDef></DataExchDef></root>',
-                            Locked = true; // will be replaced with file import when available
     begin
         if IntrastatReportSetup.Get() then
             IntrastatReportSetup.Delete(true);
@@ -772,78 +773,26 @@ codeunit 4810 IntrastatReportManagement
             NoSeriesLine."Line No." := 10000;
             NoSeriesLine.Validate("Starting No.", 'INTRA00001');
             NoSeriesLine.Insert(true);
-            NoSeriesLine.Validate("Allow Gaps in Nos.", true);
+            NoSeriesLine.Validate(Implementation, Enum::"No. Series Implementation"::Sequence);
             NoSeriesLine.Modify(true);
         end;
 
         IntrastatReportSetup.Init();
         IntrastatReportSetup.Validate("Intrastat Nos.", NoSeries.Code);
-#if not CLEAN22
-        if IntrastatSetup.Get() then begin
-            case IntrastatSetup."Company VAT No. on File" of
-                IntrastatSetup."Company VAT No. on File"::"EU Country Code + VAT Reg. No":
-                    IntrastatReportSetup."Company VAT No. on File" := IntrastatReportSetup."Company VAT No. on File"::"EU Country Code + VAT Reg. No";
-                IntrastatSetup."Company VAT No. on File"::"VAT Reg. No.":
-                    IntrastatReportSetup."Company VAT No. on File" := IntrastatReportSetup."Company VAT No. on File"::"VAT Reg. No.";
-                IntrastatSetup."Company VAT No. on File"::"VAT Reg. No. Without EU Country Code":
-                    IntrastatReportSetup."Company VAT No. on File" := IntrastatReportSetup."Company VAT No. on File"::"VAT Reg. No. Without EU Country Code";
-            end;
-
-            case IntrastatSetup."Cust. VAT No. on File" of
-                IntrastatSetup."Cust. VAT No. on File"::"EU Country Code + VAT Reg. No":
-                    IntrastatReportSetup."Cust. VAT No. on File" := IntrastatReportSetup."Cust. VAT No. on File"::"EU Country Code + VAT Reg. No";
-                IntrastatSetup."Cust. VAT No. on File"::"VAT Reg. No.":
-                    IntrastatReportSetup."Cust. VAT No. on File" := IntrastatReportSetup."Cust. VAT No. on File"::"VAT Reg. No.";
-                IntrastatSetup."Cust. VAT No. on File"::"VAT Reg. No. Without EU Country Code":
-                    IntrastatReportSetup."Cust. VAT No. on File" := IntrastatReportSetup."Cust. VAT No. on File"::"VAT Reg. No. Without EU Country Code";
-            end;
-
-            case IntrastatSetup."Vend. VAT No. on File" of
-                IntrastatSetup."Vend. VAT No. on File"::"EU Country Code + VAT Reg. No":
-                    IntrastatReportSetup."Vend. VAT No. on File" := IntrastatReportSetup."Vend. VAT No. on File"::"EU Country Code + VAT Reg. No";
-                IntrastatSetup."Vend. VAT No. on File"::"VAT Reg. No.":
-                    IntrastatReportSetup."Vend. VAT No. on File" := IntrastatReportSetup."Vend. VAT No. on File"::"VAT Reg. No.";
-                IntrastatSetup."Vend. VAT No. on File"::"VAT Reg. No. Without EU Country Code":
-                    IntrastatReportSetup."Vend. VAT No. on File" := IntrastatReportSetup."Vend. VAT No. on File"::"VAT Reg. No. Without EU Country Code";
-            end;
-
-            IntrastatReportSetup."Default Trans. - Purchase" := IntrastatSetup."Default Trans. - Purchase";
-            IntrastatReportSetup."Default Trans. - Return" := IntrastatSetup."Default Trans. - Return";
-            IntrastatReportSetup."Default Trans. Spec. Code" := IntrastatSetup."Default Trans. Spec. Code";
-            IntrastatReportSetup."Default Trans. Spec. Ret. Code" := IntrastatSetup."Default Trans. Spec. Ret. Code";
-            IntrastatReportSetup."Intrastat Contact No." := IntrastatSetup."Intrastat Contact No.";
-            case IntrastatSetup."Intrastat Contact Type" of
-                IntrastatSetup."Intrastat Contact Type"::" ":
-                    IntrastatReportSetup."Intrastat Contact Type" := IntrastatReportSetup."Intrastat Contact Type"::" ";
-                IntrastatSetup."Intrastat Contact Type"::Contact:
-                    IntrastatReportSetup."Intrastat Contact Type" := IntrastatReportSetup."Intrastat Contact Type"::Contact;
-                IntrastatSetup."Intrastat Contact Type"::Vendor:
-                    IntrastatReportSetup."Intrastat Contact Type" := IntrastatReportSetup."Intrastat Contact Type"::Vendor;
-            end;
-            IntrastatReportSetup."Report Receipts" := IntrastatSetup."Report Receipts";
-            IntrastatReportSetup."Report Shipments" := IntrastatSetup."Report Shipments";
-        end;
-#endif
         IntrastatReportSetup.Insert();
 
         IsHandled := false;
         OnBeforeInitSetup(IntrastatReportSetup, IsHandled);
 
         if not IsHandled then begin
-            if not DataExchDef.Get('INTRA-2022') then begin
-                TempBlob.CreateOutStream(XMLOutStream);
-                XMLOutStream.WriteText(DataExchangeXMLTxt);
-                TempBlob.CreateInStream(XMLInStream);
-                Xmlport.Import(Xmlport::"Imp / Exp Data Exch Def & Map", XMLInStream);
-            end;
-
             IntrastatReportSetup."Shipments Based On" := IntrastatReportSetup."Shipments Based On"::"Ship-to Country";
             IntrastatReportSetup."Get Partner VAT For" := IntrastatReportSetup."Get Partner VAT For"::Shipment;
             IntrastatReportSetup."Def. Private Person VAT No." := 'QV999999999999';
             IntrastatReportSetup."Def. 3-Party Trade VAT No." := 'QV999999999999';
             IntrastatReportSetup."Def. VAT for Unknown State" := 'QV999999999999';
-            IntrastatReportSetup."Data Exch. Def. Code" := 'INTRA-2022';
             IntrastatReportSetup.Modify();
+
+            CreateDefaultDataExchangeDef();
         end;
 
         IntrastatReportChecklist.DeleteAll(true);
@@ -884,6 +833,41 @@ codeunit 4810 IntrastatReportManagement
             IntrastatReportChecklist.Validate("Filter Expression", 'Type: Shipment');
             IntrastatReportChecklist.Insert(true);
         end;
+    end;
+
+    internal procedure CreateDefaultDataExchangeDef()
+    var
+        IntrastatReportSetup: Record "Intrastat Report Setup";
+        DataExchDef: Record "Data Exch. Def";
+        TempBlob: Codeunit "Temp Blob";
+        IsHandled: Boolean;
+        XMLOutStream: OutStream;
+        XMLInStream: InStream;
+    begin
+        IsHandled := false;
+        OnBeforeCreateDefaultDataExchangeDef(IsHandled);
+        if IsHandled then
+            exit;
+
+        if DataExchDef.Get('INTRA-2022') then
+            DataExchDef.Delete(true);
+
+        TempBlob.CreateOutStream(XMLOutStream);
+        XMLOutStream.WriteText(DataExchangeXMLTxt);
+        TempBlob.CreateInStream(XMLInStream);
+        Xmlport.Import(Xmlport::"Imp / Exp Data Exch Def & Map", XMLInStream);
+
+        IntrastatReportSetup.Get();
+        IntrastatReportSetup."Data Exch. Def. Code" := 'INTRA-2022';
+        IntrastatReportSetup.Modify();
+    end;
+
+    internal procedure ReCreateDefaultDataExchangeDef()
+    var
+        DataExchDefCard: Page "Data Exch Def Card";
+    begin
+        if Confirm(StrSubstNo(ImportDefaultIntrastatDataExchDefConfirmQst, DataExchDefCard.Caption)) then
+            CreateDefaultDataExchangeDef();
     end;
 
     procedure UpdateItemUOM(var ItemUOM: Record "Item Unit of Measure"; TariffNumber: Record "Tariff Number")
@@ -1121,4 +1105,18 @@ codeunit 4810 IntrastatReportManagement
     begin
     end;
 
+    [IntegrationEvent(true, false)]
+    local procedure OnBeforeCreateDefaultDataExchangeDef(var IsHandled: Boolean);
+    begin
+    end;
+
+    [IntegrationEvent(true, false)]
+    local procedure OnAfterGetIntrastatBaseCountryCodeFromFAEntry(var FALedgerEntry: Record "FA Ledger Entry"; var IntrastatReportSetup: Record "Intrastat Report Setup"; var CountryCode: Code[10]);
+    begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnBeforeGetIntrastatBaseCountryCode(var ItemLedgerEntry: Record "Item Ledger Entry"; var IntrastatReportSetup: Record "Intrastat Report Setup"; var CountryCode: Code[10]; var IsHandled: Boolean)
+    begin
+    end;
 }

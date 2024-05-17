@@ -1,3 +1,5 @@
+namespace Microsoft.Integration.Shopify;
+
 /// <summary>
 /// Codeunit Shpfy Process Orders (ID 30167).
 /// </summary>
@@ -73,6 +75,14 @@ codeunit 30167 "Shpfy Process Orders"
             repeat
                 ProcessShopifyOrder(ShopifyOrderHeader);
             until ShopifyOrderHeader.Next() = 0;
+    end;
+
+    internal procedure ClearProcessedDocuments(OrderHeader: Record "Shpfy Order Header")
+    begin
+        OrderHeader."Sales Order No." := '';
+        OrderHeader."Sales Invoice No." := '';
+        OrderHeader.Processed := false;
+        OrderHeader.Modify();
     end;
 
     local procedure ProcessShopifyRefunds()

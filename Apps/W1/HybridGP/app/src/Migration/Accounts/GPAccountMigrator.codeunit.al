@@ -1,3 +1,10 @@
+namespace Microsoft.DataMigration.GP;
+
+using System.Integration;
+using Microsoft.Finance.GeneralLedger.Journal;
+using Microsoft.Finance.Dimension;
+using Microsoft.Finance.GeneralLedger.Account;
+
 codeunit 4017 "GP Account Migrator"
 {
     TableNo = "GP Account";
@@ -7,73 +14,76 @@ codeunit 4017 "GP Account Migrator"
         PostingGroupDescriptionTxt: Label 'Migrated from GP', Locked = true;
         DescriptionTrxTxt: Label 'Migrated transaction', Locked = true;
         BeginningBalanceTrxTxt: Label 'Beginning Balance', Locked = true;
+        MigrationLogAreaTxt: Label 'Account', Locked = true;
 
-#if not CLEAN22
-#pragma warning disable AA0207
-    [Obsolete('The procedure will be made local.', '22.0')]
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"GL Acc. Data Migration Facade", 'OnMigrateGlAccount', '', true, true)]
-    procedure OnMigrateGlAccount(VAR Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
-#pragma warning restore AA0207
-#else
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"GL Acc. Data Migration Facade", 'OnMigrateGlAccount', '', true, true)]
-    local procedure OnMigrateGlAccount(VAR Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
-#endif
+    local procedure OnMigrateGlAccount(var Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
     var
         GPAccount: Record "GP Account";
         GPCompanyAdditionalSettings: Record "GP Company Additional Settings";
+        GPMigrationWarnings: Record "GP Migration Warnings";
+        AccountNum: Code[20];
     begin
         if RecordIdToMigrate.TableNo() <> Database::"GP Account" then
             exit;
 
-        if GPCompanyAdditionalSettings.GetMigrateOnlyGLMaster() then
+        if not GPCompanyAdditionalSettings.GetGLModuleEnabled() then
             exit;
 
         GPAccount.Get(RecordIdToMigrate);
+
+        AccountNum := CopyStr(GPAccount.AcctNum.Trim(), 1, 20);
+        if AccountNum = '' then begin
+            GPMigrationWarnings.InsertWarning(MigrationLogAreaTxt, 'Account Index: ' + Format(GPAccount.AcctIndex), 'Account is skipped because there is no account number.');
+            exit;
+        end;
+
         MigrateAccountDetails(GPAccount, Sender);
     end;
 
-#if not CLEAN22
-#pragma warning disable AA0207
-    [Obsolete('The procedure will be made local.', '22.0')]
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"GL Acc. Data Migration Facade", 'OnMigrateAccountTransactions', '', true, true)]
-    procedure OnMigrateAccountTransactions(VAR Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
-#pragma warning restore AA0207
-#else
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"GL Acc. Data Migration Facade", 'OnMigrateAccountTransactions', '', true, true)]
-    local procedure OnMigrateAccountTransactions(VAR Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
-#endif
+    local procedure OnMigrateAccountTransactions(var Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
     var
         GPAccount: Record "GP Account";
+        GLAccount: Record "G/L Account";
         GPCompanyAdditionalSettings: Record "GP Company Additional Settings";
     begin
         if RecordIdToMigrate.TableNo() <> Database::"GP Account" then
+            exit;
+
+        if not GPCompanyAdditionalSettings.GetGLModuleEnabled() then
             exit;
 
         if GPCompanyAdditionalSettings.GetMigrateOnlyGLMaster() then
             exit;
 
         GPAccount.Get(RecordIdToMigrate);
+
+        if not GLAccount.Get(GPAccount.AcctNum) then
+            exit;
+
         GenerateGLTransactionBatches(GPAccount);
     end;
 
-#if not CLEAN22
-#pragma warning disable AA0207
-    [Obsolete('The procedure will be made local.', '22.0')]
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"GL Acc. Data Migration Facade", 'OnMigratePostingGroups', '', true, true)]
-    procedure OnMigratePostingGroups(VAR Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
-#pragma warning restore AA0207
-#else
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"GL Acc. Data Migration Facade", 'OnMigratePostingGroups', '', true, true)]
-    local procedure OnMigratePostingGroups(VAR Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
-#endif
+    local procedure OnMigratePostingGroups(var Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
     var
         GPAccount: Record "GP Account";
+        GLAccount: Record "G/L Account";
+        GPCompanyAdditionalSettings: Record "GP Company Additional Settings";
         HelperFunctions: Codeunit "Helper Functions";
     begin
         if RecordIdToMigrate.TableNo() <> Database::"GP Account" then
             exit;
 
+        if not GPCompanyAdditionalSettings.GetGLModuleEnabled() then
+            exit;
+
         GPAccount.Get(RecordIdToMigrate);
+
+        if not GLAccount.Get(GPAccount.AcctNum) then
+            exit;
+
         Sender.CreateGenBusinessPostingGroupIfNeeded(CopyStr(PostingGroupCodeTxt, 1, 20), CopyStr(PostingGroupDescriptionTxt, 1, 50));
         Sender.CreateGenProductPostingGroupIfNeeded(CopyStr(PostingGroupCodeTxt, 1, 20), CopyStr(PostingGroupDescriptionTxt, 1, 50));
         Sender.CreateGeneralPostingSetupIfNeeded(CopyStr(PostingGroupCodeTxt, 1, 10));
@@ -106,30 +116,33 @@ codeunit 4017 "GP Account Migrator"
         Sender.ModifyGLAccount(true);
     end;
 
-#if not CLEAN22
-#pragma warning disable AA0207
-    [Obsolete('The procedure will be made local.', '22.0')]
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"GL Acc. Data Migration Facade", 'OnCreateOpeningBalanceTrx', '', true, true)]
-    procedure OnCreateOpeningBalanceTrx(VAR Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
-#pragma warning restore AA0207
-#else
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"GL Acc. Data Migration Facade", 'OnCreateOpeningBalanceTrx', '', true, true)]
-    local procedure OnCreateOpeningBalanceTrx(VAR Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
-#endif
+    local procedure OnCreateOpeningBalanceTrx(var Sender: Codeunit "GL Acc. Data Migration Facade"; RecordIdToMigrate: RecordId)
     var
         GPAccount: Record "GP Account";
+        GLAccount: Record "G/L Account";
+        GPCompanyAdditionalSettings: Record "GP Company Additional Settings";
     begin
         if RecordIdToMigrate.TableNo() <> Database::"GP Account" then
+            exit;
+
+        if not GPCompanyAdditionalSettings.GetGLModuleEnabled() then
+            exit;
+
+        if GPCompanyAdditionalSettings.GetMigrateOnlyGLMaster() then
             exit;
 
         GPAccount.Get(RecordIdToMigrate);
         if GPAccount.IncomeBalance then
             exit;
 
+        if not GLAccount.Get(GPAccount.AcctNum) then
+            exit;
+
         CreateBeginningBalance(GPAccount);
     end;
 
-    local procedure CreateBeginningBalance(GPAccount: Record "GP Account")
+    procedure CreateBeginningBalance(GPAccount: Record "GP Account")
     var
         GPGL10111: Record "GP GL10111";
         GenJournalLine: Record "Gen. Journal Line";
@@ -139,6 +152,15 @@ codeunit 4017 "GP Account Migrator"
         BeginningBalance: Decimal;
         PostingGroupCode: Code[10];
         InitialYear: Integer;
+        ACTNUMBR_1: Code[20];
+        ACTNUMBR_2: Code[20];
+        ACTNUMBR_3: Code[20];
+        ACTNUMBR_4: Code[20];
+        ACTNUMBR_5: Code[20];
+        ACTNUMBR_6: Code[20];
+        ACTNUMBR_7: Code[20];
+        ACTNUMBR_8: Code[20];
+        DimSetID: Integer;
     begin
         InitialYear := GPCompanyAdditionalSettings.GetInitialYear();
         if InitialYear = 0 then
@@ -155,8 +177,7 @@ codeunit 4017 "GP Account Migrator"
             exit;
 
         PostingGroupCode := PostingGroupCodeTxt + format(InitialYear) + 'BB';
-        GPFiscalPeriods.SetRange(YEAR1, InitialYear);
-        if GPFiscalPeriods.FindFirst() then begin
+        if GPFiscalPeriods.Get(0, InitialYear) then begin
             DataMigrationFacadeHelper.CreateGeneralJournalBatchIfNeeded(CopyStr(PostingGroupCode, 1, 10), '', '');
             DataMigrationFacadeHelper.CreateGeneralJournalLine(
                 GenJournalLine,
@@ -172,20 +193,38 @@ codeunit 4017 "GP Account Migrator"
                 '',
                 ''
                 );
+
+            ACTNUMBR_1 := GPGL10111.ACTNUMBR_1;
+            ACTNUMBR_2 := GPGL10111.ACTNUMBR_2;
+            ACTNUMBR_3 := GPGL10111.ACTNUMBR_3;
+            ACTNUMBR_4 := GPGL10111.ACTNUMBR_4;
+            ACTNUMBR_5 := GPGL10111.ACTNUMBR_5;
+            ACTNUMBR_6 := GPGL10111.ACTNUMBR_6;
+            ACTNUMBR_7 := GPGL10111.ACTNUMBR_7;
+            ACTNUMBR_8 := GPGL10111.ACTNUMBR_8;
+
+            if AreAllSegmentNumbersEmpty(ACTNUMBR_1, ACTNUMBR_2, ACTNUMBR_3, ACTNUMBR_4, ACTNUMBR_5, ACTNUMBR_6, ACTNUMBR_7, ACTNUMBR_8) then
+                GetSegmentNumbersFromGPAccountIndex(GPGL10111.ACTINDX, ACTNUMBR_1, ACTNUMBR_2, ACTNUMBR_3, ACTNUMBR_4, ACTNUMBR_5, ACTNUMBR_6, ACTNUMBR_7, ACTNUMBR_8);
+
+            DimSetID := CreateDimSet(ACTNUMBR_1, ACTNUMBR_2, ACTNUMBR_3, ACTNUMBR_4, ACTNUMBR_5, ACTNUMBR_6, ACTNUMBR_7, ACTNUMBR_8);
+            GenJournalLine.Validate("Dimension Set ID", DimSetID);
+            GenJournalLine.Modify(true);
         end;
     end;
 
-    local procedure MigrateAccountDetails(GPAccount: Record "GP Account"; GLAccDataMigrationFacade: Codeunit "GL Acc. Data Migration Facade")
+    procedure MigrateAccountDetails(GPAccount: Record "GP Account"; var GLAccDataMigrationFacade: Codeunit "GL Acc. Data Migration Facade")
     var
         HelperFunctions: Codeunit "Helper Functions";
+        DataMigrationErrorLogging: Codeunit "Data Migration Error Logging";
         AccountType: Option Posting;
         AccountNum: Code[20];
     begin
-        AccountNum := CopyStr(GPAccount.AcctNum, 1, 20);
+        AccountNum := CopyStr(GPAccount.AcctNum.Trim(), 1, 20);
 
         if not GLAccDataMigrationFacade.CreateGLAccountIfNeeded(AccountNum, CopyStr(GPAccount.Name, 1, 50), AccountType::Posting) then
             exit;
 
+        DataMigrationErrorLogging.SetLastRecordUnderProcessing(Format(GPAccount.RecordId));
         GLAccDataMigrationFacade.SetAccountCategory(HelperFunctions.ConvertAccountCategory(GPAccount));
         GLAccDataMigrationFacade.SetDebitCreditType(HelperFunctions.ConvertDebitCreditType(GPAccount));
         GLAccDataMigrationFacade.SetAccountSubCategory(HelperFunctions.AssignSubAccountCategory(GPAccount));
@@ -193,7 +232,7 @@ codeunit 4017 "GP Account Migrator"
         GLAccDataMigrationFacade.ModifyGLAccount(true);
     end;
 
-    local procedure GenerateGLTransactionBatches(GPAccount: Record "GP Account");
+    procedure GenerateGLTransactionBatches(GPAccount: Record "GP Account");
     var
         GPGLTransactions: Record "GP GLTransactions";
         GenJournalLine: Record "Gen. Journal Line";
@@ -233,14 +272,14 @@ codeunit 4017 "GP Account Migrator"
                         '',
                         ''
                         );
-                    DimSetID := CreateDimSet(GPGLTransactions);
+                    DimSetID := CreateDimSet(GPGLTransactions.ACTNUMBR_1, GPGLTransactions.ACTNUMBR_2, GPGLTransactions.ACTNUMBR_3, GPGLTransactions.ACTNUMBR_4, GPGLTransactions.ACTNUMBR_5, GPGLTransactions.ACTNUMBR_6, GPGLTransactions.ACTNUMBR_7, GPGLTransactions.ACTNUMBR_8);
                     GenJournalLine.Validate("Dimension Set ID", DimSetID);
                     GenJournalLine.Modify(true);
                 end;
             until GPGLTransactions.Next() = 0;
     end;
 
-    local procedure CreateDimSet(GPGLTransactions: Record "GP GLTransactions"): Integer
+    local procedure CreateDimSet(ACTNUMBR_1: Code[20]; ACTNUMBR_2: Code[20]; ACTNUMBR_3: Code[20]; ACTNUMBR_4: Code[20]; ACTNUMBR_5: Code[20]; ACTNUMBR_6: Code[20]; ACTNUMBR_7: Code[20]; ACTNUMBR_8: Code[20]): Integer
     var
         TempDimensionSetEntry: Record "Dimension Set Entry" temporary;
         DimensionValue: Record "Dimension Value";
@@ -251,12 +290,13 @@ codeunit 4017 "GP Account Migrator"
     begin
         if GPSegments.FindSet() then
             repeat
-                DimensionValue.Get(HelperFunctions.CheckDimensionName(GPSegments.Id), GetSegmentValue(GPGLTransactions, GPSegments.SegmentNumber));      //'0000'); GPGLTransactions ACTNUMBR_1 - 9
-                TempDimensionSetEntry.Init();
-                TempDimensionSetEntry.Validate("Dimension Code", DimensionValue."Dimension Code");
-                TempDimensionSetEntry.Validate("Dimension Value Code", DimensionValue.Code);
-                TempDimensionSetEntry.Validate("Dimension Value ID", DimensionValue."Dimension Value ID");
-                TempDimensionSetEntry.Insert(true);
+                if DimensionValue.Get(HelperFunctions.CheckDimensionName(GPSegments.Id), GetSegmentValue(ACTNUMBR_1, ACTNUMBR_2, ACTNUMBR_3, ACTNUMBR_4, ACTNUMBR_5, ACTNUMBR_6, ACTNUMBR_7, ACTNUMBR_8, GPSegments.SegmentNumber)) then begin
+                    TempDimensionSetEntry.Init();
+                    TempDimensionSetEntry.Validate("Dimension Code", DimensionValue."Dimension Code");
+                    TempDimensionSetEntry.Validate("Dimension Value Code", DimensionValue.Code);
+                    TempDimensionSetEntry.Validate("Dimension Value ID", DimensionValue."Dimension Value ID");
+                    TempDimensionSetEntry.Insert(true);
+                end;
             until GPSegments.Next() = 0;
 
         NewDimSetID := DimensionManagement.GetDimensionSetID(TempDimensionSetEntry);
@@ -264,25 +304,64 @@ codeunit 4017 "GP Account Migrator"
         exit(NewDimSetID);
     end;
 
-    local procedure GetSegmentValue(GPGLTransactions: Record "GP GLTransactions"; SegmentNumber: Integer): Code[20]
+    local procedure GetSegmentValue(ACTNUMBR_1: Code[20]; ACTNUMBR_2: Code[20]; ACTNUMBR_3: Code[20]; ACTNUMBR_4: Code[20]; ACTNUMBR_5: Code[20]; ACTNUMBR_6: Code[20]; ACTNUMBR_7: Code[20]; ACTNUMBR_8: Code[20]; SegmentNumber: Integer): Code[20]
     begin
         case SegmentNumber of
             1:
-                exit(GPGLTransactions.ACTNUMBR_1);
+                exit(ACTNUMBR_1);
             2:
-                exit(GPGLTransactions.ACTNUMBR_2);
+                exit(ACTNUMBR_2);
             3:
-                exit(GPGLTransactions.ACTNUMBR_3);
+                exit(ACTNUMBR_3);
             4:
-                exit(GPGLTransactions.ACTNUMBR_4);
+                exit(ACTNUMBR_4);
             5:
-                exit(GPGLTransactions.ACTNUMBR_5);
+                exit(ACTNUMBR_5);
             6:
-                exit(GPGLTransactions.ACTNUMBR_6);
+                exit(ACTNUMBR_6);
             7:
-                exit(GPGLTransactions.ACTNUMBR_7);
+                exit(ACTNUMBR_7);
             8:
-                exit(GPGLTransactions.ACTNUMBR_8);
+                exit(ACTNUMBR_8);
         end;
+    end;
+
+    local procedure GetSegmentNumbersFromGPAccountIndex(GPAccountIndex: Integer; var ACTNUMBR_1: Code[20]; var ACTNUMBR_2: Code[20]; var ACTNUMBR_3: Code[20]; var ACTNUMBR_4: Code[20]; var ACTNUMBR_5: Code[20]; var ACTNUMBR_6: Code[20]; var ACTNUMBR_7: Code[20]; var ACTNUMBR_8: Code[20]): Code[20]
+    var
+        GPGL00100: Record "GP GL00100";
+    begin
+        if GPGL00100.Get(GPAccountIndex) then begin
+            ACTNUMBR_1 := GPGL00100.ACTNUMBR_1;
+            ACTNUMBR_2 := GPGL00100.ACTNUMBR_2;
+            ACTNUMBR_3 := GPGL00100.ACTNUMBR_3;
+            ACTNUMBR_4 := GPGL00100.ACTNUMBR_4;
+            ACTNUMBR_5 := GPGL00100.ACTNUMBR_5;
+            ACTNUMBR_6 := GPGL00100.ACTNUMBR_6;
+            ACTNUMBR_7 := GPGL00100.ACTNUMBR_7;
+            ACTNUMBR_8 := GPGL00100.ACTNUMBR_8;
+        end;
+    end;
+
+    local procedure AreAllSegmentNumbersEmpty(ACTNUMBR_1: Code[20]; ACTNUMBR_2: Code[20]; ACTNUMBR_3: Code[20]; ACTNUMBR_4: Code[20]; ACTNUMBR_5: Code[20]; ACTNUMBR_6: Code[20]; ACTNUMBR_7: Code[20]; ACTNUMBR_8: Code[20]): Boolean
+    begin
+        exit(
+                CodeIsEmpty(ACTNUMBR_1) and
+                CodeIsEmpty(ACTNUMBR_2) and
+                CodeIsEmpty(ACTNUMBR_3) and
+                CodeIsEmpty(ACTNUMBR_4) and
+                CodeIsEmpty(ACTNUMBR_5) and
+                CodeIsEmpty(ACTNUMBR_6) and
+                CodeIsEmpty(ACTNUMBR_7) and
+                CodeIsEmpty(ACTNUMBR_8)
+            );
+    end;
+
+    local procedure CodeIsEmpty(TheCode: Code[20]): Boolean
+    var
+        CodeText: Text[20];
+    begin
+        CodeText := TheCode;
+        CodeText := CopyStr(CodeText.Trim(), 1, MaxStrLen(CodeText));
+        exit(CodeText = '');
     end;
 }

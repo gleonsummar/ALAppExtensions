@@ -1,3 +1,14 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Service.Reports;
+
+using Microsoft.Finance.Currency;
+using Microsoft.Foundation.Address;
+using Microsoft.Inventory.Item;
+using Microsoft.Inventory.Ledger;
+
 table 5024 "Service Declaration Line"
 {
 
@@ -53,13 +64,8 @@ table 5024 "Service Declaration Line"
         {
             Caption = 'VAT Registration No.';
             ObsoleteReason = 'Replaced with the VAT Reg. No.';
-#if CLEAN22
             ObsoleteState = Removed;
             ObsoleteTag = '25.0';
-#else
-            ObsoleteState = Pending;
-            ObsoleteTag = '22.0';
-#endif
         }
         field(15; "VAT Reg. No."; Text[50])
         {

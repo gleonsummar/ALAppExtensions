@@ -1,3 +1,11 @@
+// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AutomaticAccounts;
+
+using System.Telemetry;
+
 page 4852 "Automatic Account List"
 {
     ApplicationArea = Basic, Suite;
@@ -36,18 +44,8 @@ page 4852 "Automatic Account List"
     trigger OnInit()
     var
         FeatureTelemetry: Codeunit "Feature Telemetry";
-#if not CLEAN22
-        AutoAccCodesPageMgt: Codeunit "Auto. Acc. Codes Page Mgt.";
-        AutoAccCodesFeatureMgt: Codeunit "Auto. Acc. Codes Feature Mgt.";
-#endif
     begin
         FeatureTelemetry.LogUptake('0001P9L', AccTok, Enum::"Feature Uptake Status"::Discovered);
-#if not CLEAN22
-        if not AutoAccCodesFeatureMgt.IsEnabled() then begin
-            AutoAccCodesPageMgt.OpenAutoAccGroupListPage();
-            Error('');
-        end;
-#endif
     end;
 
     var

@@ -10,6 +10,7 @@ codeunit 139683 "Statistical Account Test"
         LibraryVariableStorage: Codeunit "Library - Variable Storage";
         LibraryERM: Codeunit "Library - ERM";
         LibraryDimension: Codeunit "Library - Dimension";
+        LibraryRandom: Codeunit "Library - Random";
         Initialized: Boolean;
         EMPLOYEESLbl: Label 'EMPLOYEES';
         OFFICESPACELbl: Label 'OFFICESPACE';
@@ -24,6 +25,7 @@ codeunit 139683 "Statistical Account Test"
         OfficeSpaceExpectedAmount: Integer;
         TotalNumberOfOfficeSpaceLedgerEntries: Integer;
         TotalNumberOfEmployeeLedgerEntries: Integer;
+        BalanceMustBeEqualErr: Label 'Balance must be equal to %1.', Comment = '%1 = Field Value';
 
     local procedure Initialize()
     var
@@ -331,6 +333,131 @@ codeunit 139683 "Statistical Account Test"
         // Verified in DimOvervMatrixVerifyCountPageHandler
     end;
 
+    [Test]
+    [HandlerFunctions('MessageDialogHandler,ConfirmationDialogHandler')]
+    procedure VerifyBalanceIfThereIsADimensionFilterInStatisticalAccount()
+    var
+        ColumnLayout: Record "Column Layout";
+        DimensionValue: Record "Dimension Value";
+        ColumnLayoutName: Record "Column Layout Name";
+        AccScheduleName: Record "Acc. Schedule Name";
+        AccScheduleLine: Record "Acc. Schedule Line";
+        FinancialReport: Record "Financial Report";
+        FinancialReports: TestPage "Financial Reports";
+        AccScheduleOverview: TestPage "Acc. Schedule Overview";
+        ExpectedAmount: Decimal;
+        DateFilter: Text;
+    begin
+        // [SCENARIO 476816] Verify Balance should be shown correctly filtered by Global Dim 1 Department = ADM in the Financial Reports.
+        Initialize();
+
+        // [GIVEN] Find the Global Dimension 1.
+        LibraryDimension.GetGlobalDimCodeValue(1, DimensionValue);
+
+        // [GIVEN] Setup Demo Data.
+        SetupFinancialReport();
+
+        // [GIVEN] Create a Column Name and Column Layout.
+        LibraryERM.CreateColumnLayoutName(ColumnLayoutName);
+
+        LibraryERM.CreateColumnLayout(ColumnLayout, ColumnLayoutName.Name);
+        ColumnLayout.Validate("Column Type", "Column Layout Type"::"Balance at Date");
+        ColumnLayout.Modify();
+
+        // [GIVEN] Create a Account Schedule Name and Line with "Statistical Account" and Dimension.
+        LibraryERM.CreateAccScheduleName(AccScheduleName);
+
+        LibraryERM.CreateAccScheduleLine(AccScheduleLine, AccScheduleName.Name);
+        AccScheduleLine.Validate("Dimension 1 Totaling", DimensionValue.Code);
+        AccScheduleLine.Validate("Totaling Type", "Acc. Schedule Line Totaling Type"::"Statistical Account");
+        AccScheduleLine.Validate(Totaling, OFFICESPACELbl);
+        AccScheduleLine.Modify();
+
+        // [GIVEN] Update "Financial Report Column Group" in Financial report.
+        FinancialReport.Get(AccScheduleLine."Schedule Name");
+        FinancialReport.Validate("Financial Report Column Group", ColumnLayout."Column Layout Name");
+        FinancialReport.Modify();
+
+        // [WHEN] Run Account Schedule Overview with "Period Type" as year.
+        FinancialReports.OpenEdit();
+        FinancialReports.Filter.SetFilter(Name, AccScheduleName.Name);
+        AccScheduleOverview.Trap();
+        FinancialReports.Overview.Invoke();
+        AccScheduleOverview.PeriodType.SetValue("Analysis Period Type"::Year);
+
+        // [GIVEN] Save the Date Filter.
+        DateFilter := Format(AccScheduleOverview.DateFilter);
+        ExpectedAmount := GetExpectedStatisticalLedgerEntryValue(
+                            AccScheduleLine,
+                            CopyStr(DateFilter, StrPos(DateFilter, '.')), DimensionValue.Code);
+
+        // [VERIFY] Verify Balance should be shown correctly filtered by Global Dim 1 Department = ADM in the Financial Reports.
+        Assert.AreEqual(
+            ExpectedAmount,
+            AccScheduleOverview.ColumnValues1.AsDecimal(),
+            StrSubstNo(BalanceMustBeEqualErr, ExpectedAmount));
+    end;
+
+    [Test]
+    [HandlerFunctions('MessageDialogHandler,ConfirmationDialogHandler')]
+    procedure VerifyShortcutDimensionsInTheStatisticalAccountsJournal()
+    var
+        DimensionValue: array[8] of Record "Dimension Value";
+        StatisticalAccount: Record "Statistical Account";
+    begin
+        // [SCENARIO 484054] Verify that the Shortcut Dimensions in the Statistical Accounts Journal.
+        Initialize();
+
+        // [GIVEN] Setup Demo Data.
+        CreateDemoData();
+
+        // [GIVEN] Update ShortCut Dimension.
+        UpdateShortcutDimensionSetup(DimensionValue);
+
+        // [GIVEN] Create a Statistical Account.
+        CreateStatisticalAccount(StatisticalAccount);
+
+        // [GIVEN] Create a Statistical Account Journal Lines.
+        CreateStatisticalAccountsJournal(DimensionValue, StatisticalAccount, LibraryRandom.RandInt(10));
+
+        // [VERIFY] Verify that the Shortcut Dimensions in the Statistical Accounts Journal.
+        VerifyShortcutDimensionsInStatisticalAccountsJournal(DimensionValue, StatisticalAccount);
+    end;
+
+    [Test]
+    procedure VerifyShortcutDimensionClearWhenNewLineSetupOnStatisticalAccountJournal()
+    var
+        StatisticalAccount: Record "Statistical Account";
+        DimensionValue: Record "Dimension Value";
+        StatisticalAccountsJournal: TestPage "Statistical Accounts Journal";
+    begin
+        // [SCENARIO 487974] Issues with manually entering the lines on the Statistical Account Journal with Dimensions as well as copying & pasting into the journal.
+        Initialize();
+
+        // [GIVEN] - Create Statistical Account with Dimension
+        CreateStatisticalAccountWithDimensions(StatisticalAccount);
+
+        // [GIVEN] Create new Shortcut Dimensiona and update ShortCut Dimension.
+        LibraryDimension.CreateDimWithDimValue(DimensionValue);
+        LibraryERM.SetShortcutDimensionCode(3, DimensionValue."Dimension Code");
+
+        // [THEN] Create Statistical Account Journal Lines on Page, set defaults and Shortcut Dimension 3
+        StatisticalAccountsJournal.OpenEdit();
+        StatisticalAccountsJournal.New();
+        StatisticalAccountsJournal."Posting Date".SetValue(WorkDate());
+        StatisticalAccountsJournal."Document No.".SetValue(LibraryRandom.RandText(10));
+        StatisticalAccountsJournal.StatisticalAccountNo.SetValue(StatisticalAccount."No.");
+        StatisticalAccountsJournal.Amount.SetValue(LibraryRandom.RandInt(20));
+        StatisticalAccountsJournal.ShortcutDimCode3.SetValue(DimensionValue.Code);
+
+        // [WHEN] Move to Next Line
+        StatisticalAccountsJournal.Next();
+
+        // [VERIFY] Verify: Moving to next line the shortcut dimension 3 should blank
+        StatisticalAccountsJournal.ShortcutDimCode3.AssertEquals('');
+        StatisticalAccountsJournal.Close();
+    end;
+
     local procedure SetupFinancialReport()
     var
         AccScheduleLine: Record "Acc. Schedule Line";
@@ -557,4 +684,78 @@ codeunit 139683 "Statistical Account Test"
         ColumnLayout.Validate("Comparison Period Formula", ComparisonPeriodFormula);
         ColumnLayout.Insert();
     end;
+
+    local procedure GetExpectedStatisticalLedgerEntryValue(
+        AccScheduleLine: Record "Acc. Schedule Line";
+        DateFilter: Text;
+        DimensionCode: Code[20]): Decimal
+    var
+        StatisticalLedgerEntry: Record "Statistical Ledger Entry";
+    begin
+        StatisticalLedgerEntry.SetFilter("Statistical Account No.", AccScheduleLine.Totaling);
+        StatisticalLedgerEntry.SetFilter("Posting Date", DateFilter);
+        StatisticalLedgerEntry.SetRange("Global Dimension 1 Code", DimensionCode);
+        StatisticalLedgerEntry.CalcSums(Amount);
+
+        exit(StatisticalLedgerEntry.Amount);
+    end;
+
+    local procedure UpdateShortcutDimensionSetup(var DimensionValue: array[8] of Record "Dimension Value")
+    var
+        i: Integer;
+    begin
+        for i := 3 to ArrayLen(DimensionValue) do begin
+            LibraryDimension.CreateDimWithDimValue(DimensionValue[i]);
+            LibraryERM.SetShortcutDimensionCode(i, DimensionValue[i]."Dimension Code");
+        end;
+    end;
+
+    local procedure CreateStatisticalAccountsJournal(
+        var DimensionValue: array[8] of Record "Dimension Value";
+        StatisticalAccount: Record "Statistical Account";
+        NoOfLines: Integer)
+    var
+        StatisticalAccountsJournal: TestPage "Statistical Accounts Journal";
+        i: Integer;
+    begin
+        for i := 1 to NoOfLines do begin
+            StatisticalAccountsJournal.OpenEdit();
+            StatisticalAccountsJournal.New();
+            StatisticalAccountsJournal."Posting Date".SetValue(WorkDate());
+            StatisticalAccountsJournal."Document No.".SetValue(LibraryRandom.RandText(10));
+            StatisticalAccountsJournal.StatisticalAccountNo.SetValue(StatisticalAccount."No.");
+            StatisticalAccountsJournal.Amount.SetValue(LibraryRandom.RandInt(20));
+            StatisticalAccountsJournal.ShortcutDimCode3.SetValue(DimensionValue[3].Code);
+            StatisticalAccountsJournal.ShortcutDimCode4.SetValue(DimensionValue[4].Code);
+            StatisticalAccountsJournal.ShortcutDimCode5.SetValue(DimensionValue[5].Code);
+            StatisticalAccountsJournal.ShortcutDimCode6.SetValue(DimensionValue[6].Code);
+            StatisticalAccountsJournal.ShortcutDimCode7.SetValue(DimensionValue[7].Code);
+            StatisticalAccountsJournal.ShortcutDimCode8.SetValue(DimensionValue[8].Code);
+            StatisticalAccountsJournal.Close();
+        end;
+    end;
+
+    local procedure VerifyShortcutDimensionsInStatisticalAccountsJournal(
+        DimensionValue: array[8] of Record "Dimension Value";
+        StatisticalAccount: Record "Statistical Account")
+    var
+        StatisticalAccountJournalLine: Record "Statistical Acc. Journal Line";
+        StatisticalAccountsJournal: TestPage "Statistical Accounts Journal";
+    begin
+        StatisticalAccountJournalLine.Reset();
+        StatisticalAccountJournalLine.SetRange("Statistical Account No.", StatisticalAccount."No.");
+        if StatisticalAccountJournalLine.FindSet() then
+            repeat
+                StatisticalAccountsJournal.OpenView();
+                StatisticalAccountsJournal.GoToRecord(StatisticalAccountJournalLine);
+                StatisticalAccountsJournal.ShortcutDimCode3.AssertEquals(DimensionValue[3].Code);
+                StatisticalAccountsJournal.ShortcutDimCode4.AssertEquals(DimensionValue[4].Code);
+                StatisticalAccountsJournal.ShortcutDimCode5.AssertEquals(DimensionValue[5].Code);
+                StatisticalAccountsJournal.ShortcutDimCode6.AssertEquals(DimensionValue[6].Code);
+                StatisticalAccountsJournal.ShortcutDimCode7.AssertEquals(DimensionValue[7].Code);
+                StatisticalAccountsJournal.ShortcutDimCode8.AssertEquals(DimensionValue[8].Code);
+                StatisticalAccountsJournal.Close();
+            until StatisticalAccountJournalLine.Next() = 0;
+    end;
+
 }

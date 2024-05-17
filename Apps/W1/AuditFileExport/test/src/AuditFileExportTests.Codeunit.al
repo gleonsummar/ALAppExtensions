@@ -15,8 +15,6 @@ codeunit 148035 "Audit File Export Tests"
         LibraryMarketing: Codeunit "Library - Marketing";
         Assert: Codeunit Assert;
         IsInitialized: Boolean;
-        AddressMustHaveValueErr: label 'Address must have a value in Contact: No.=%1', Comment = '%1 - Contact No.';
-        CommentMustHaveValueErr: label 'Header Comment must have a value in Audit File Export Header: ID=%1', Comment = 'Audit File Export Header ID';
 
     [Test]
     [HandlerFunctions('ConfirmHandlerYes')]
@@ -148,8 +146,7 @@ codeunit 148035 "Audit File Export Tests"
         asserterror AuditFileExportTestHelper.StartExport(AuditFileExportHeader);
 
         // [THEN] Error "Header Comment must have a value" is shown.
-        Assert.ExpectedError(StrSubstNo(CommentMustHaveValueErr, AuditFileExportHeader.ID));
-        Assert.ExpectedErrorCode('TestField');
+        Assert.ExpectedTestFieldError(AuditFileExportHeader.FieldCaption("Header Comment"), '');
     end;
 
     [Test]
@@ -204,8 +201,7 @@ codeunit 148035 "Audit File Export Tests"
         asserterror AuditFileExportDocCard.DataCheck.Invoke();
 
         // [THEN] Error "Address must have a value in Contact: No.=A" is shown.
-        Assert.ExpectedError(StrSubstNo(AddressMustHaveValueErr, Contact."No."));
-        Assert.ExpectedErrorCode('TestField');
+        Assert.ExpectedTestFieldError(Contact.FieldCaption(Address), '');
     end;
 
     [Test]
@@ -237,6 +233,23 @@ codeunit 148035 "Audit File Export Tests"
         AuditFileExportDocCard.DataCheck.Invoke();
 
         // [THEN] No error is shown.
+    end;
+
+    [Test]
+    procedure AuditFileExportFormatNone()
+    var
+        AuditFileExportSetup: Record "Audit File Export Setup";
+        AuditFileExportHeader: Record "Audit File Export Header";
+    begin
+        // [SCENARIO 465520] Audit File Export Format "None" with 0 value exists.
+        AuditFileExportSetup.Validate("Audit File Export Format", "Audit File Export Format"::None);
+        Assert.AreEqual("Audit File Export Format"::None, AuditFileExportSetup."Audit File Export Format", '');
+
+        AuditFileExportHeader.Validate("Audit File Export Format", "Audit File Export Format"::None);
+        Assert.AreEqual("Audit File Export Format"::None, AuditFileExportHeader."Audit File Export Format", '');
+
+        // restore setup
+        AuditFileExportSetup.InitSetup("Audit File Export Format"::TEST);
     end;
 
     local procedure Initialize()
@@ -291,13 +304,12 @@ codeunit 148035 "Audit File Export Tests"
     local procedure GetFileContentFromZip(var ZipTempBlob: Codeunit "Temp Blob"; var TempBlob: Codeunit "Temp Blob"; FileNameInZip: Text)
     var
         DataCompression: Codeunit "Data Compression";
-        ZipEntryLength: Integer;
         FileOutStream: OutStream;
     begin
         Clear(TempBlob);
         DataCompression.OpenZipArchive(ZipTempBlob, false);
         TempBlob.CreateOutStream(FileOutStream);
-        DataCompression.ExtractEntry(FileNameInZip, FileOutStream, ZipEntryLength);
+        DataCompression.ExtractEntry(FileNameInZip, FileOutStream);
         DataCompression.CloseZipArchive();
     end;
 

@@ -1,4 +1,13 @@
-﻿page 40063 "Cloud Migration Management"
+﻿namespace Microsoft.DataMigration;
+
+using System.Environment;
+using System.Integration;
+using System.Telemetry;
+using System.Security.AccessControl;
+using System.Security.User;
+using Microsoft.API.Upgrade;
+
+page 40063 "Cloud Migration Management"
 {
     Caption = 'Cloud Migration Management';
     PageType = ListPlus;
@@ -537,6 +546,52 @@
                         end;
                 end;
             }
+
+            action(SkipRemovingPemissionsFromUsers)
+            {
+                Enabled = IsSuper;
+                Visible = not IsOnPrem;
+                ApplicationArea = Basic, Suite;
+                Caption = 'Enable/Disable Removing Permissions from Users';
+                ToolTip = 'Allows change the behavior if user permissions should be removed when the cloud migration is setup.';
+                Image = ChangeLog;
+
+                trigger OnAction()
+                var
+                    HybridCloudManagement: Codeunit "Hybrid Cloud Management";
+                begin
+                    HybridCloudManagement.ChangeRemovePermissionsFromUsers();
+                end;
+            }
+            action(ChangeTheWayDataIsReplicated)
+            {
+                Enabled = IsSuper;
+                Visible = not IsOnPrem;
+                ApplicationArea = Basic, Suite;
+                Caption = 'Change how the data is replicated';
+                ToolTip = 'Allows defining which data is replicated and how. You can include or exclude the tables from the cloud migration and define if a table keeps existing data (delta sync) or replaces the entire table.';
+                Image = ChangeLog;
+
+                trigger OnAction()
+                var
+                    IntelligentCloudStatus: Record "Intelligent Cloud Status";
+                    CloudMigReplicateDataMgt: Codeunit "Cloud Mig. Replicate Data Mgt.";
+                begin
+                    CloudMigReplicateDataMgt.LoadRecords(IntelligentCloudStatus);
+
+                    if IntelligentCloudStatus.FindFirst() then
+                        Page.Run(Page::"Cloud Mig - Select Tables", IntelligentCloudStatus);
+                end;
+            }
+            action(SkipApiUpgrade)
+            {
+                Visible = not IsOnPrem;
+                ApplicationArea = Basic, Suite;
+                Caption = 'Manage API Upgrade';
+                ToolTip = 'Allows to skip the API upgrade and run it later after the cloud migraiton is completed.';
+                Image = ChangeLog;
+                RunObject = page "API Data Upgrade Companies";
+            }
         }
 
         area(Promoted)
@@ -605,7 +660,7 @@
             SendUserIsNotSuperNotification();
 
         SendRepairDataNotification();
-        IsOnPrem := NOT EnvironmentInformation.IsSaaS();
+        IsOnPrem := not EnvironmentInformation.IsSaaS();
 
         if (not PermissionManager.IsIntelligentCloud()) and (not IsOnPrem) then
             SendSetupIntelligentCloudNotification();
@@ -672,7 +727,7 @@
         HybridCloudManagement: Codeunit "Hybrid Cloud Management";
         PermissionManager: Codeunit "Permission Manager";
     begin
-        IsSetupComplete := PermissionManager.IsIntelligentCloud() OR (IsOnPrem AND NOT IntelligentCloudStatus.IsEmpty());
+        IsSetupComplete := PermissionManager.IsIntelligentCloud() or (IsOnPrem and not IntelligentCloudStatus.IsEmpty());
         IsMigratedCompany := HybridCompany.Get(CompanyName()) and HybridCompany.Replicate;
         AdlSetupEnabled := HybridCloudManagement.CanSetupAdlMigration();
 

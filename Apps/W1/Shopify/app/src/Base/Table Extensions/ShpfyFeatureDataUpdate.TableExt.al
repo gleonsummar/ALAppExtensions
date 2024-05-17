@@ -1,4 +1,7 @@
-#if not CLEAN22
+namespace Microsoft.Integration.Shopify;
+
+using System.Environment.Configuration;
+
 tableextension 30200 "Shpfy Feature Data Update" extends "Feature Data Update Status"
 {
     fields
@@ -7,7 +10,9 @@ tableextension 30200 "Shpfy Feature Data Update" extends "Feature Data Update St
         {
             DataClassification = SystemMetadata;
             Caption = 'Migrate Shopify templates';
+            ObsoleteState = Removed;
+            ObsoleteTag = '25.0';
+            ObsoleteReason = 'Not used anymore.';
         }
     }
 }
-#endif

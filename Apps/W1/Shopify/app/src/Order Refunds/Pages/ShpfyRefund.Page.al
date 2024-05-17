@@ -1,3 +1,5 @@
+namespace Microsoft.Integration.Shopify;
+
 page 30145 "Shpfy Refund"
 {
     ApplicationArea = All;
@@ -125,9 +127,11 @@ page 30145 "Shpfy Refund"
 
                 trigger OnAction()
                 var
+                    RefundsAPI: Codeunit "Shpfy Refunds API";
                     IReturnRefundProcess: Interface "Shpfy IReturnRefund Process";
                     ErrorInfo: ErrorInfo;
                 begin
+                    RefundsAPI.VerifyRefundCanCreateCreditMemo(Rec."Refund Id");
                     IReturnRefundProcess := "Shpfy ReturnRefund ProcessType"::"Auto Create Credit Memo";
                     if IReturnRefundProcess.CanCreateSalesDocumentFor("Shpfy Source Document Type"::Refund, Rec."Refund Id", ErrorInfo) then
                         IReturnRefundProcess.CreateSalesDocument("Shpfy Source Document Type"::Refund, Rec."Refund Id")
@@ -141,6 +145,7 @@ page 30145 "Shpfy Refund"
                 Caption = 'Retrieved Shopify Data';
                 Image = Entry;
                 ToolTip = 'View the data retrieved from Shopify.';
+
                 trigger OnAction();
                 var
                     DataCapture: Record "Shpfy Data Capture";

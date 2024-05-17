@@ -1,3 +1,11 @@
+namespace Microsoft.Integration.Shopify;
+
+using Microsoft.Inventory.Item;
+using Microsoft.Sales.Document;
+using Microsoft.Foundation.Address;
+using Microsoft.Sales.History;
+using Microsoft.Sales.Posting;
+
 /// <summary>
 /// Codeunit Shpfy Process Order (ID 30166).
 /// </summary>
@@ -101,11 +109,12 @@ codeunit 30166 "Shpfy Process Order"
             SalesHeader."Ship-to Post Code" := CopyStr(ShopifyOrderHeader."Ship-to Post Code", 1, MaxStrLen(SalesHeader."Ship-to Post Code"));
             SalesHeader."Ship-to County" := CopyStr(ShopifyOrderHeader."Ship-to County", 1, MaxStrLen(SalesHeader."Ship-to County"));
             SalesHeader."Ship-to Contact" := ShopifyOrderHeader."Ship-to Contact Name";
-            SalesHeader.Validate("Prices Including VAT", ShopifyOrderHeader."VAT Included" and ProductPriceCalc.PricesIncludingVAT(ShopifyOrderHeader."Shop Code"));
+            SalesHeader.Validate("Prices Including VAT", ShopifyOrderHeader."VAT Included" and ProductPriceCalc.DoPricesIncludingVAT(ShopifyOrderHeader."Shop Code"));
             SalesHeader.Validate("Currency Code", ShopifyShop."Currency Code");
             SalesHeader."Shpfy Order Id" := ShopifyOrderHeader."Shopify Order Id";
             SalesHeader."Shpfy Order No." := ShopifyOrderHeader."Shopify Order No.";
             SalesHeader.Validate("Document Date", ShopifyOrderHeader."Document Date");
+            SalesHeader.Validate("External Document No.", ShopifyOrderHeader."PO Number");
             if ShopLocation.Get(ShopifyOrderHeader."Shop Code", ShopifyOrderHeader."Location Id") and (ShopLocation."Default Location Code" <> '') then
                 SalesHeader.Validate("Location Code", ShopLocation."Default Location Code");
             if OrderMgt.FindTaxArea(ShopifyOrderHeader, ShopifyTaxArea) and (ShopifyTaxArea."Tax Area Code" <> '') then
@@ -127,7 +136,11 @@ codeunit 30166 "Shpfy Process Order"
             if ShopifyOrderHeader."Work Description".HasValue then
                 SalesHeader.SetWorkDescription(ShopifyOrderHeader.GetWorkDescription());
         end;
+#if not CLEAN24
+        OrdersAPI.AddOrderAttribute(ShopifyOrderHeader, 'BC Doc. No.', SalesHeader."No.", ShopifyShop);
+#else
         OrdersAPI.AddOrderAttribute(ShopifyOrderHeader, 'BC Doc. No.', SalesHeader."No.");
+#endif
         DocLinkToBCDoc.Init();
         DocLinkToBCDoc."Shopify Document Type" := "Shpfy Shop Document Type"::"Shopify Shop Order";
         DocLinkToBCDoc."Shopify Document Id" := ShopifyOrderHeader."Shopify Order Id";
@@ -204,7 +217,7 @@ codeunit 30166 "Shpfy Process Order"
                         end else begin
                             SalesLine.Validate(Type, SalesLine.Type::Item);
                             SalesLine.Validate("No.", ShopifyOrderLine."Item No.");
-                            if Item.Get(SalesLine."No.") and (Item.Type = Item.Type::Inventory) then begin
+                            if Item.Get(SalesLine."No.") then begin
                                 if (ShopifyOrderLine."Location Id" <> 0) then
                                     if ShopLocation.Get(ShopifyOrderHeader."Shop Code", ShopifyOrderLine."Location Id") then
                                         SalesLine.Validate("Location Code", ShopLocation."Default Location Code");
@@ -229,6 +242,7 @@ codeunit 30166 "Shpfy Process Order"
 
         OrderShippingCharges.Reset();
         OrderShippingCharges.SetRange("Shopify Order Id", ShopifyOrderHeader."Shopify Order Id");
+        OrderShippingCharges.SetFilter(Amount, '>0');
         if OrderShippingCharges.FindSet() then begin
             ShopifyShop.TestField("Shipping Charges Account");
             repeat
@@ -312,5 +326,16 @@ codeunit 30166 "Shpfy Process Order"
     begin
         SalesShptHeader."Shpfy Order No." := SalesHeader."Shpfy Order No.";
     end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Sales Header", 'OnBeforeSalesLineInsert', '', false, false)]
+    local procedure TransferShopifyValuesOnBeforeSalesLineInsert(var SalesLine: Record "Sales Line"; var TempSalesLine: Record "Sales Line" temporary; SalesHeader: Record "Sales Header")
+    begin
+        SalesLine."Shpfy Order No." := TempSalesLine."Shpfy Order No.";
+        SalesLine."Shpfy Order Line Id" := TempSalesLine."Shpfy Order Line Id";
+        SalesLine."Shpfy Refund Id" := TempSalesLine."Shpfy Refund Id";
+        SalesLine."Shpfy Refund Line Id" := TempSalesLine."Shpfy Refund Line Id";
+    end;
 }
+
+
 

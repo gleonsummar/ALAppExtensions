@@ -1,3 +1,5 @@
+namespace Microsoft.Integration.Shopify;
+
 /// <summary>
 /// Table Shpfy Tag (ID 30104).
 /// </summary>
@@ -57,7 +59,7 @@ table 30104 "Shpfy Tag"
         Tags: TextBuilder;
     begin
         Rec.SetRange("Parent Id", ParentId);
-        if Rec.FindSet(false, false) then begin
+        if Rec.FindSet(false) then begin
             repeat
                 Tags.Append(',');
                 Tags.Append(Rec.Tag);
@@ -93,32 +95,5 @@ table 30104 "Shpfy Tag"
                 Tag.Insert();
             end;
         end;
-    end;
-
-    /// <summary> 
-    /// Update Tags.
-    /// </summary>
-    /// <param name="ParentTableNo">Parameter of type Integer.</param>
-    /// <param name="ParentId">Parameter of type BigInteger.</param>
-    /// <param name="JTags">Parameter of type JsonArray.</param>
-    internal procedure UpdateTags(ParentTableNo: Integer; ParentId: BigInteger; JTags: JsonArray)
-    var
-        Tag: Record "Shpfy Tag";
-        JTag: JsonToken;
-        Index: Integer;
-    begin
-        Tag.SetRange("Parent Id", ParentId);
-        if not Tag.IsEmpty() then
-            Tag.DeleteAll();
-
-        for Index := 1 to JTags.Count do
-            if JTags.Get(Index, JTag) then
-                if JTag.IsValue and not (JTag.AsValue().IsNull or JTag.AsValue().IsUndefined) then begin
-                    Clear(Tag);
-                    Tag."Parent Table No." := ParentTableNo;
-                    Tag."Parent Id" := ParentId;
-                    Tag.Tag := CopyStr(JTag.AsValue().AsText().Trim(), 1, MaxStrLen(Tag.Tag));
-                    Tag.Insert();
-                end;
     end;
 }

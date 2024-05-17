@@ -1,3 +1,19 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.GST.Subcontracting;
+
+using Microsoft.Finance.Dimension;
+using Microsoft.Finance.GeneralLedger.Setup;
+using Microsoft.Inventory.Item;
+using Microsoft.Warehouse.Structure;
+using Microsoft.Inventory.Ledger;
+using Microsoft.Inventory.Location;
+using Microsoft.Inventory.Tracking;
+using Microsoft.Manufacturing.Document;
+using Microsoft.Purchases.Document;
+
 table 18479 "Sub Order Component List"
 {
     Caption = 'Sub Order Component List';
@@ -237,6 +253,12 @@ table 18479 "Sub Order Component List"
         field(60; "Identification Mark"; Text[20])
         {
             Caption = 'Identification Mark';
+            DataClassification = EndUserIdentifiableInformation;
+        }
+        field(61; "Bin Code"; Code[20])
+        {
+            Caption = 'Bin Code';
+            TableRelation = if ("Quantity To Send" = filter(> 0)) "Bin Content"."Bin Code" where("Location Code" = field("Company Location"), "Item No." = field("Item No."), "Variant Code" = field("Variant Code"));
             DataClassification = EndUserIdentifiableInformation;
         }
         field(480; "Dimension Set ID"; Integer)

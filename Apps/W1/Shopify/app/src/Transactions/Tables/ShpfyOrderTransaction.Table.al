@@ -1,9 +1,14 @@
+namespace Microsoft.Integration.Shopify;
+
+using Microsoft.Sales.Document;
+using Microsoft.Sales.Receivables;
+using Microsoft.Sales.History;
+
 /// <summary>
 /// Table Shpfy Order Transaction (ID 30133).
 /// </summary>
 table 30133 "Shpfy Order Transaction"
 {
-    Access = Internal;
     Caption = 'Shopify Order Transaction';
     DataClassification = SystemMetadata;
     LookupPageID = "Shpfy Order Transactions";
@@ -28,7 +33,7 @@ table 30133 "Shpfy Order Transaction"
             DataClassification = SystemMetadata;
             Editable = false;
         }
-        field(4; Type; enum "Shpfy Transaction Type")
+        field(4; Type; Enum "Shpfy Transaction Type")
         {
             Caption = 'Type';
             DataClassification = SystemMetadata;
@@ -40,7 +45,7 @@ table 30133 "Shpfy Order Transaction"
             DataClassification = SystemMetadata;
             Editable = false;
         }
-        field(6; Status; enum "Shpfy Transaction Status")
+        field(6; Status; Enum "Shpfy Transaction Status")
         {
             Caption = 'Status';
             DataClassification = SystemMetadata;
@@ -87,30 +92,35 @@ table 30133 "Shpfy Order Transaction"
             Caption = 'Source Name';
             DataClassification = SystemMetadata;
             Editable = false;
+            Access = Internal;
         }
         field(16; "Credit Card Bin"; Code[10])
         {
             Caption = 'Credit Card Bin';
             DataClassification = SystemMetadata;
             Editable = false;
+            Access = Internal;
         }
         field(17; "AVS Result Code"; Code[1])
         {
             Caption = 'AVS Result Code'; //http://www.emsecommerce.net/avs_cvv2_response_codes.htm
             DataClassification = SystemMetadata;
             Editable = false;
+            Access = Internal;
         }
         field(18; "CVV Result Code"; Code[1])
         {
             Caption = 'CVV Result Code'; //http://www.emsecommerce.net/avs_cvv2_response_codes.htm
             DataClassification = SystemMetadata;
             Editable = false;
+            Access = Internal;
         }
         field(19; "Credit Card Number"; Text[30])
         {
             Caption = 'Credit Card Number';
             DataClassification = SystemMetadata;
             Editable = false;
+            Access = Internal;
         }
         field(20; "Credit Card Company"; Text[50])
         {
@@ -129,6 +139,12 @@ table 30133 "Shpfy Order Transaction"
         {
             Caption = 'Error Code';
             DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(23; "Payment Id"; Text[250])
+        {
+            Caption = 'Payment Id';
+            DataClassification = CustomerContent;
             Editable = false;
         }
         field(101; "Sales Document No."; code[20])
@@ -161,6 +177,20 @@ table 30133 "Shpfy Order Transaction"
             Caption = 'Payment Priority';
             FieldClass = FlowField;
             CalcFormula = lookup("Shpfy Payment Method Mapping".Priority where("Shop Code" = field("Shop Code"), Gateway = field(Gateway), "Credit Card Company" = field("Credit Card Company")));
+            ObsoleteReason = 'Priority is no longer used.';
+#if not CLEAN25
+            ObsoleteState = Pending;
+            ObsoleteTag = '25.0';
+#else
+            ObsoleteState = Removed;
+            ObsoleteTag = '28.0';
+#endif
+        }
+        field(106; Used; Boolean)
+        {
+            Caption = 'Used';
+            FieldClass = FlowField;
+            CalcFormula = exist("Cust. Ledger Entry" where("Shpfy Transaction Id" = field("Shopify Transaction Id")));
         }
     }
 
@@ -177,6 +207,9 @@ table 30133 "Shpfy Order Transaction"
         key(Idx002; "Created At")
         {
         }
+        key(Idx003; Type)
+        {
+        }
     }
 
     fieldgroups
@@ -190,7 +223,7 @@ table 30133 "Shpfy Order Transaction"
         DataCapture.SetCurrentKey("Linked To Table", "Linked To Id");
         DataCapture.SetRange("Linked To Table", Database::"Shpfy Order Transaction");
         DataCapture.SetRange("Linked To Id", Rec.SystemId);
-        if not DataCapture.IsEmpty then
+        if not DataCapture.IsEmpty() then
             DataCapture.DeleteAll(false);
     end;
 }

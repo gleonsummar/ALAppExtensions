@@ -1,3 +1,20 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AuditFileExport;
+
+using Microsoft.Finance.Dimension;
+using Microsoft.Finance.GeneralLedger.Account;
+using Microsoft.Finance.VAT.Setup;
+using Microsoft.Foundation.AuditCodes;
+using Microsoft.Utilities;
+#if not CLEAN24
+using System.Environment.Configuration;
+using System.Media;
+#endif
+using System.Utilities;
+
 codeunit 10672 "SAF-T Mapping Helper"
 {
     TableNo = "SAF-T Mapping Range";
@@ -19,12 +36,16 @@ codeunit 10672 "SAF-T Mapping Helper"
         VATPostingSetupWithoutTaxCodeErr: Label 'One or more VAT posting setup do not have a %1. Open the VAT Posting Setup page and specify %1 for each VAT posting setup combination.';
         SourceCodeWithoutSAFTCodeErr: Label 'One or more source codes do not have a SAF-T source code. Open the Source Codes page and specify a SAF-T source code for each source code.';
         ChartOfAccountsAlreadyExistsErr: Label 'A chart of accounts must be empty to be created based on SAF-T standard accounts.';
+#if not CLEAN23
         CopyReportingCodesToSAFTCodesQst: Label 'Do you want to copy sales and purchase reporting codes to sales/purchase SAF-T standard tax codes?';
+#endif
         AssortedJournalsSourceCodeDescriptionLbl: Label 'Assorted Journals';
         GeneralLedgerJournalsSourceCodeDescriptionLbl: Label 'General Ledger Journals';
         AccountReceivablesSourceCodeDescriptionLbl: Label 'Account Receivables';
         AccountPayablesSourceCodeDescriptionLbl: Label 'Account Payables';
+#if not CLEAN24
         SAFTSetupGuideTxt: Label 'Set up SAF-T';
+#endif
         DefaultLbl: Label 'DEFAULT';
 
     trigger OnRun()
@@ -193,6 +214,8 @@ codeunit 10672 "SAF-T Mapping Helper"
             until SAFTGLAccountMapping.Next() = 0;
     end;
 
+#if not CLEAN23
+    [Obsolete('The procedure will be removed, no need to copy the fields', '23.0')]
     procedure CopyReportingCodesToSAFTCodes()
     var
         VATPostingSetup: Record "VAT Posting Setup";
@@ -212,7 +235,7 @@ codeunit 10672 "SAF-T Mapping Helper"
             VATPostingSetup.Modify(true);
         until VATPostingSetup.Next() = 0;
     end;
-
+#endif
     local procedure GLAccHasEntries(GLAccNo: Code[20]; StartingDate: Date; EndingDate: Date; IncludeIncomingBalance: Boolean): Boolean
     var
         GLAccount: Record "G/L Account";
@@ -473,7 +496,11 @@ codeunit 10672 "SAF-T Mapping Helper"
         TotalCount := VATPostingSetup.Count();
         if VATPostingSetup.FindSet() then
             repeat
+#if CLEAN23
+                if (VATPostingSetup."Sale VAT Reporting Code" <> '') or (VATPostingSetup."Purch. VAT Reporting Code" <> '') then
+#else
                 if (VATPostingSetup."Sales SAF-T Standard Tax Code" <> '') or (VATPostingSetup."Purch. SAF-T Standard Tax Code" <> '') then
+#endif
                     Count += 1;
             until VATPostingSetup.Next() = 0;
         exit(StrSubstNo('%1/%2', Count, TotalCount));
@@ -497,6 +524,8 @@ codeunit 10672 "SAF-T Mapping Helper"
         ErrorMessageManagement.LogContextFieldError(0, ErrorMessage, SourceVariant, SourceFieldNo, '');
     end;
 
+#if not CLEAN24
+    [Obsolete('The procedure is not used will be removed', '24.0')]
     procedure AddSAFTAssistedSetup()
     var
         GuidedExperience: Codeunit "Guided Experience";
@@ -514,6 +543,7 @@ codeunit 10672 "SAF-T Mapping Helper"
             ''
         );
     end;
+#endif
 
     procedure InsertDefaultNoSeriesInSAFTSetup()
     var

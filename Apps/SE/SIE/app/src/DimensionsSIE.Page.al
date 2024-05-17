@@ -1,3 +1,9 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AuditFileExport;
+
 page 5315 "Dimensions SIE"
 {
     ApplicationArea = Basic, Suite;
@@ -50,27 +56,11 @@ page 5315 "Dimensions SIE"
         LookupModeActive := false;
     end;
 
-#if CLEAN22
     trigger OnOpenPage()
     begin
         if CurrPage.LookupMode then
             LookupModeActive := true;
     end;
-#else
-    trigger OnOpenPage()
-    var
-        SIEManagement: Codeunit "SIE Management";
-    begin
-        if not SIEManagement.IsFeatureEnabled() then
-            if not IsRunFromWizard then begin
-                Page.Run(Page::"SIE Dimensions");
-                Error('');
-            end;
-
-        if CurrPage.LookupMode then
-            LookupModeActive := true;
-    end;
-#endif
 
     trigger OnInsertRecord(BelowxRec: Boolean): Boolean
     begin
@@ -85,16 +75,7 @@ page 5315 "Dimensions SIE"
     end;
 
     var
-#if not CLEAN22
-        IsRunFromWizard: Boolean;
-#endif
         [InDataSet]
         LookupModeActive: Boolean;
         CannotEditInLookupModeErr: label 'SIE dimension cannot be added or deleted when the page is opened in lookup mode. To add, remove or edit SIE dimensions, search for the page Dimensions SIE and open it.';
-#if not CLEAN22
-    procedure SetRunFromWizard(RunFromWizard: Boolean)
-    begin
-        IsRunFromWizard := RunFromWizard;
-    end;
-#endif
 }

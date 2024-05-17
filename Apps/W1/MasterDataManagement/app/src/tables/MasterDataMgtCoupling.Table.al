@@ -1,3 +1,7 @@
+namespace Microsoft.Integration.MDM;
+
+using Microsoft.Integration.SyncEngine;
+
 table 7231 "Master Data Mgt. Coupling"
 {
     Caption = 'Master Data Mgt. Coupling';
@@ -5,6 +9,8 @@ table 7231 "Master Data Mgt. Coupling"
                   tabledata "Integration Synch. Job" = r,
                   tabledata "Integration Synch. Job Errors" = r,
                   tabledata "Master Data Management Setup" = r;
+
+    DataClassification = SystemMetadata;
 
     fields
     {
@@ -207,10 +213,18 @@ table 7231 "Master Data Mgt. Coupling"
 
     internal procedure InsertRecord(IntegrationSysID: Guid; SysId: Guid; TableId: Integer)
     var
+        LocalRecordRef: RecordRef;
         EmptyGuid: Guid;
     begin
         if IntegrationSysID = EmptyGuid then
             Error('Empty Integration Record System ID');
+
+        if IntegrationSysID <> SysId then begin
+            LocalRecordRef.Open(TableId);
+            LocalRecordRef.ReadIsolation := LocalRecordRef.ReadIsolation::ReadUncommitted;
+            if not LocalRecordRef.GetBySystemId(SysId) then
+                exit;
+        end;
 
         Reset();
         Init();
@@ -233,7 +247,15 @@ table 7231 "Master Data Mgt. Coupling"
     var
         MasterDataMgtCoupling: Record "Master Data Mgt. Coupling";
     begin
-        exit(FindRowFromLocalSystemID(LocalSystemId, MasterDataMgtCoupling));
+        MasterDataMgtCoupling.SetCurrentKey("Local System ID");
+        MasterDataMgtCoupling.SetFilter("Local System ID", LocalSystemId);
+        if MasterDataMgtCoupling.FindSet() then
+            repeat
+                if MasterDataMgtCoupling."Local System ID" <> MasterDataMgtCoupling."Integration System ID" then
+                    exit(true);
+            until MasterDataMgtCoupling.Next() = 0;
+
+        exit(false);
     end;
 
     internal procedure IsIntegrationSystemIdCoupled(IntegrationSystemId: Guid; IntegrationTableID: Integer): Boolean
@@ -265,7 +287,7 @@ table 7231 "Master Data Mgt. Coupling"
         RecRef.Open(TableId);
         FldRef := RecRef.FIELD(RecRef.SystemIdNo());
         FldRef.SetRange("Local System ID");
-        If RecRef.FindFirst() then
+        if RecRef.FindFirst() then
             FoundRecId := RecRef.RecordId();
 
         if FoundRecId <> EmptyRecId then

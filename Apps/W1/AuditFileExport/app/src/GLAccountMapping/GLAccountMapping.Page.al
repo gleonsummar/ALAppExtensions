@@ -1,3 +1,9 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Finance.AuditFileExport;
+
 page 5260 "G/L Account Mapping"
 {
     PageType = List;
@@ -5,7 +11,7 @@ page 5260 "G/L Account Mapping"
     UsageCategory = Administration;
     SourceTable = "G/L Account Mapping Header";
     Caption = 'G/L Account Mapping';
-    CardPageId = "G/L Account Mapping Card";
+    CardPageId = "G/L Acc. Mapping Card";
     Editable = false;
 
     layout

@@ -1,5 +1,7 @@
+namespace Microsoft.Integration.Shopify;
+
 /// <summary>
-/// Codeunit Shpfy GQL CloseOrder (ID 30217) implements Interface Shpfy IGarphQL.
+/// Codeunit Shpfy GQL CloseOrder (ID 30217) implements Interface Shpfy IGraphQL.
 /// </summary>
 codeunit 30217 "Shpfy GQL CloseOrder" implements "Shpfy IGraphQL"
 {
@@ -11,7 +13,7 @@ codeunit 30217 "Shpfy GQL CloseOrder" implements "Shpfy IGraphQL"
     /// <returns>Return value of type Text.</returns>
     internal procedure GetGraphQL(): Text
     begin
-        exit('{"query": "mutation { orderClose(input: { id: \"gid://shopify/Order/{{OrderId}}\" }) { order { legacyResourceId closed closedAt }}}"}');
+        exit('{"query": "mutation { orderClose(input: { id: \"gid://shopify/Order/{{OrderId}}\" }) { order { legacyResourceId closed closedAt }, userErrors {field, message}}}"}');
     end;
 
     /// <summary>

@@ -1,3 +1,10 @@
+namespace Microsoft.Integration.Shopify;
+
+using Microsoft.Inventory.Item;
+using Microsoft.Sales.Customer;
+using Microsoft.Sales.Document;
+using Microsoft.Warehouse.Setup;
+
 /// <summary>
 /// Page Shpfy Order (ID 30113).
 /// </summary>
@@ -11,6 +18,7 @@ page 30113 "Shpfy Order"
     RefreshOnActivate = true;
     SourceTable = "Shpfy Order Header";
     UsageCategory = None;
+
     layout
     {
         area(content)
@@ -35,32 +43,13 @@ page 30113 "Shpfy Order"
                     Editable = false;
                     ToolTip = 'Specifies the risk level from the Shopify order.';
                 }
-#if not CLEAN22
-                field(TemplateCodeField; Rec."Customer Template Code")
-                {
-                    ApplicationArea = All;
-                    Caption = 'Customer Template Code';
-                    Lookup = true;
-                    ShowMandatory = true;
-                    TableRelation = "Config. Template Header".Code where("Table Id" = const(18));
-                    ToolTip = 'Specifies the code for the template to create a new customer.';
-                    ObsoleteReason = 'Replaced by Customer Templ. Code';
-                    ObsoleteState = Pending;
-                    ObsoleteTag = '22.0';
-                    Visible = not NewTemplatesEnabled;
-                }
-#endif
                 field(TemplCodeField; Rec."Customer Templ. Code")
                 {
                     ApplicationArea = All;
                     Caption = 'Customer Template Code';
                     Lookup = true;
-                    ShowMandatory = true;
                     TableRelation = "Customer Templ.".Code;
                     ToolTip = 'Specifies the code for the template to create a new customer.';
-#if not CLEAN22
-                    Visible = NewTemplatesEnabled;
-#endif
                 }
                 field(SellToCustomerNo; Rec."Sell-to Customer No.")
                 {
@@ -78,10 +67,15 @@ page 30113 "Shpfy Order"
                     ApplicationArea = All;
                     ToolTip = 'Specifies how to make a payment, such as with bank transfer, cash, or check.';
                 }
+                field("PO Number"; Rec."PO Number")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the purchase order number that is associated with the Shopify order.';
+                }
                 field(Closed; Rec.Closed)
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Specified if the Shopify order is archived by D365BC.';
+                    ToolTip = 'Specifies if the Shopify order is archived by D365BC.';
                 }
                 group(SellTo)
                 {
@@ -225,7 +219,14 @@ page 30113 "Shpfy Order"
                 {
                     ApplicationArea = All;
                     Editable = false;
-                    ToolTip = 'Specifies the order''s status in terms of fulfilled line items. Valid values are: fulfilled, in progress, open, pending fulfillment, restocked, unfulfilled, partially fulfilled.';
+                    ToolTip = 'Specifies the order''s status in terms of fulfilled line items. Valid values are: fulfilled, in progress, open, pending fulfillment, restocked, unfulfilled, partially fulfilled, on hold.';
+                }
+                field(ReturnStatus; Rec."Return Status")
+                {
+                    ApplicationArea = All;
+                    Editable = false;
+                    Visible = false;
+                    ToolTip = 'Specifies the status or returns assocuated with the order. Valid values are: inspection complete, in progress, no return, returned, return failed, return requested.';
                 }
                 field(SalesOrderNo; Rec."Sales Order No.")
                 {
@@ -491,6 +492,13 @@ page 30113 "Shpfy Order"
                 SubPageLink = "No." = field("Item No.");
                 Visible = false;
             }
+            part(OrderLineAttributes; "Shpfy Order Lines Attributes")
+            {
+                ApplicationArea = all;
+                Provider = ShopifyOrderLines;
+                Caption = 'Order Line Attributes';
+                SubPageLink = "Order Id" = field("Shopify Order Id"), "Order Line Id" = field(SystemId);
+            }
             systempart(Links; Links)
             {
                 ApplicationArea = All;
@@ -548,6 +556,9 @@ page 30113 "Shpfy Order"
                         ShopifyOrderHeader: Record "Shpfy Order Header";
                         ProcessShopifyOrders: Codeunit "Shpfy Process Orders";
                     begin
+                        if Rec.Processed then
+                            Error(ClearProcessedErr);
+
                         if Confirm(StrSubstNo(CreateShopifyMsg, Rec."Shopify Order No.")) then begin
                             CurrPage.Update(true);
                             Commit();
@@ -576,8 +587,113 @@ page 30113 "Shpfy Order"
                     begin
                         CurrPage.Update(true);
                         Shop.Get(Rec."Shop Code");
-                        OrderMapping.MapHeaderFields(Rec, Shop, true);
+                        if not Rec.B2B then
+                            OrderMapping.MapHeaderFields(Rec, Shop, true)
+                        else
+                            OrderMapping.MapB2BHeaderFields(Rec, Shop, true);
                         CurrPage.Update(false);
+                    end;
+                }
+                action(MarkAsPaid)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Mark as Paid';
+                    Image = Payment;
+                    Promoted = true;
+                    PromotedCategory = Process;
+                    PromotedIsBig = true;
+                    PromotedOnly = true;
+                    Enabled = not Rec."Fully Paid";
+                    ToolTip = 'Mark the Shopify order as paid.';
+
+                    trigger OnAction()
+                    var
+                        OrdersApi: Codeunit "Shpfy Orders API";
+                        ErrorInfo: ErrorInfo;
+                    begin
+                        if OrdersApi.MarkAsPaid(Rec."Shopify Order Id", Rec."Shop Code") then
+                            Message(MarkAsPaidMsg)
+                        else begin
+                            ErrorInfo.Message := MarkAsPaidFailedErr;
+                            ErrorInfo.AddNavigationAction(LogEntriesLbl);
+                            ErrorInfo.PageNo(Page::"Shpfy Log Entries");
+                            Error(ErrorInfo);
+                        end;
+                    end;
+                }
+                action(CancelOrder)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Cancel Order';
+                    Image = Cancel;
+                    Promoted = true;
+                    PromotedCategory = Process;
+                    PromotedIsBig = true;
+                    PromotedOnly = true;
+                    ToolTip = 'Cancel the Shopify order.';
+
+                    trigger OnAction()
+                    var
+                        CancelOrder: Page "Shpfy Cancel Order";
+                        ErrorInfo: ErrorInfo;
+                    begin
+                        CancelOrder.LookupMode := true;
+                        CancelOrder.SetRec(Rec);
+                        CancelOrder.RunModal();
+                        if CancelOrder.GetResult() then
+                            Message(OrderCancelledMsg)
+                        else begin
+                            ErrorInfo.Message := OrderCancelFailedErr;
+                            ErrorInfo.AddNavigationAction(LogEntriesLbl);
+                            ErrorInfo.PageNo(Page::"Shpfy Log Entries");
+                            Error(ErrorInfo);
+                        end;
+                    end;
+                }
+                action(UnlinkProcessedShopifyOrder)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Unlink Processed Documents';
+                    Enabled = Rec.Processed;
+                    Image = UnLinkAccount;
+                    ToolTip = 'Unlink the processed Shopify order from the sales document in Business Central.';
+
+                    trigger OnAction()
+                    var
+                        ProcessShopifyOrders: Codeunit "Shpfy Process Orders";
+                    begin
+                        if Confirm(ClearProcessedMsg) then
+                            ProcessShopifyOrders.ClearProcessedDocuments(Rec);
+                    end;
+                }
+                action(MarkConflictAsResolved)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Mark Conflict as Resolved';
+                    Enabled = Rec."Has Order State Error";
+                    Image = Approval;
+                    ToolTip = 'Mark the conflict as resolved.';
+
+                    trigger OnAction()
+                    var
+                        ImportOrder: Codeunit "Shpfy Import Order";
+                    begin
+                        ImportOrder.MarkOrderConflictAsResolved(Rec);
+                        Rec.Modify();
+                    end;
+                }
+                action(ForceSync)
+                {
+                    ApplicationArea = All;
+                    Image = Refresh;
+                    Caption = 'Sync order from Shopify';
+                    ToolTip = 'Update your Shopify Order with the current data from Shopify.';
+
+                    trigger OnAction()
+                    var
+                        ImportOrder: Codeunit "Shpfy Import Order";
+                    begin
+                        ImportOrder.ReimportExistingOrderConfirmIfConflicting(Rec);
                     end;
                 }
             }
@@ -639,6 +755,20 @@ page 30113 "Shpfy Order"
                 RunPageLink = "Shopify Order Id" = field("Shopify Order Id");
                 RunPageMode = View;
                 ToolTip = 'View an array of fulfillments associated with the Shopify Order.';
+            }
+            action(FulfillmentOrders)
+            {
+                ApplicationArea = All;
+                Caption = 'Fulfillment Orders';
+                Image = ShipmentLines;
+                Promoted = true;
+                PromotedCategory = Category4;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                RunObject = Page "Shpfy Fulfillment Orders";
+                RunPageLink = "Shopify Order Id" = field("Shopify Order Id");
+                RunPageMode = View;
+                ToolTip = 'View an array of fulfillment orders associated with the Shopify Order.';
             }
             action(SalesOrder)
             {
@@ -765,15 +895,38 @@ page 30113 "Shpfy Order"
                     Page.Run(Page::"Shpfy Data Capture List", DataCapture);
                 end;
             }
+            action(Disputes)
+            {
+                ApplicationArea = All;
+                Caption = 'Disputes';
+                Image = OrderList;
+                Promoted = true;
+                PromotedCategory = Category4;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                ToolTip = 'View the disputes related to order of the selected transaction.';
+
+                trigger OnAction();
+                var
+                    Dispute: Record "Shpfy Dispute";
+                begin
+                    Dispute.SetRange("Source Order Id", Rec."Shopify Order Id");
+                    Page.Run(Page::"Shpfy Disputes", Dispute);
+                end;
+            }
         }
     }
 
     var
         CreateShopifyMsg: Label 'Create sales document from Shopify order %1?', Comment = '%1 = Order No.';
+        MarkAsPaidMsg: Label 'The order has been marked as paid.';
+        ClearProcessedMsg: Label 'This order is already linked to a sales document in Business Central. Do you want to unlink it?';
+        ClearProcessedErr: Label 'This order is already linked to a sales document in Business Central.';
+        MarkAsPaidFailedErr: Label 'The order could not be marked as paid. You can see the error message from Shopify Log Entries.';
+        OrderCancelledMsg: Label 'Order has been cancelled successfully.';
+        OrderCancelFailedErr: Label 'The order could not be cancelled. You can see the error message from Shopify Log Entries.';
+        LogEntriesLbl: Label 'Log Entries';
         WorkDescription: Text;
-#if not CLEAN22
-        NewTemplatesEnabled: Boolean;
-#endif
 
     trigger OnAfterGetRecord()
     begin
@@ -781,14 +934,7 @@ page 30113 "Shpfy Order"
     end;
 
     trigger OnOpenPage()
-#if not CLEAN22
-    var
-        ShpfyTemplates: Codeunit "Shpfy Templates";
-#endif
     begin
-#if not CLEAN22
-        NewTemplatesEnabled := ShpfyTemplates.NewTemplatesEnabled();
-#endif
     end;
 }
 

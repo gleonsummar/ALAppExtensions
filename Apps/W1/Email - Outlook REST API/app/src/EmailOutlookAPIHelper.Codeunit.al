@@ -3,13 +3,18 @@
 // Licensed under the MIT License. See License.txt in the project root for license information.
 // ------------------------------------------------------------------------------------------------
 
+namespace System.Email;
+
+using System.Environment;
+using System.DataAdministration;
+
 codeunit 4509 "Email - Outlook API Helper"
 {
     Permissions = tabledata "Email - Outlook Account" = rimd;
 
     var
-        CannotConnectToMailServerErr: Label 'Client ID or Client secret is not set up on the Email Application AAD Registration page.';
-        SetupOutlookAPIQst: Label 'To connect to your email account you must create an App registration in Azure Active Directory and then enter information about the registration on the Email Application AAD Registration Page in Business Central. Do you want to do that now?';
+        CannotConnectToMailServerErr: Label 'Client ID or Client secret is not set up on the Email Microsoft Entra application registration page.';
+        SetupOutlookAPIQst: Label 'To connect to your email account you must create an App registration in Microsoft Entra and then enter information about the registration on the Email Microsoft Entra application registration page in Business Central. Do you want to do that now?';
         OnPremOnlyErr: Label 'Authentication using the Client ID and secret should only be used for Business Central on-premises.';
         AccountNotFoundErr: Label 'We could not find the account. Typically, this is because the account has been deleted.';
         EmailBodyTooLargeErr: Label 'The email is too large to send. The size limit is 4 MB, not including attachments.', Locked = true;
@@ -219,6 +224,8 @@ codeunit 4509 "Email - Outlook API Helper"
             IsolatedStorage.Delete(Rec.ClientSecret, DataScope::Module);
     end;
 
+#if not CLEAN24
+    [Obsolete('Replaced by InitializeClients with v2 interfaces.', '24.0')]
     procedure InitializeClients(var OutlookAPIClient: interface "Email - Outlook API Client"; var OAuthClient: interface "Email - OAuth Client")
     var
         DefaultAPIClient: Codeunit "Email - Outlook API Client";
@@ -228,15 +235,23 @@ codeunit 4509 "Email - Outlook API Helper"
         OAuthClient := DefaultOAuthClient;
         OnAfterInitializeClients(OutlookAPIClient, OAuthClient);
     end;
+#endif
+    procedure InitializeClients(var OutlookAPIClient: interface "Email - Outlook API Client v2"; var OAuthClient: interface "Email - OAuth Client v2")
+    var
+        DefaultAPIClient: Codeunit "Email - Outlook API Client";
+        DefaultOAuthClient: Codeunit "Email - OAuth Client";
+    begin
+        OutlookAPIClient := DefaultAPIClient;
+        OAuthClient := DefaultOAuthClient;
+        OnAfterInitializeClientsV2(OutlookAPIClient, OAuthClient);
+    end;
 
     procedure Send(EmailMessage: Codeunit "Email Message"; AccountId: Guid)
     var
         EmailOutlookAccount: Record "Email - Outlook Account";
-        APIClient: interface "Email - Outlook API Client";
-        OAuthClient: interface "Email - OAuth Client";
-
-        [NonDebuggable]
-        AccessToken: Text;
+        APIClient: interface "Email - Outlook API Client v2";
+        OAuthClient: interface "Email - OAuth Client v2";
+        AccessToken: SecretText;
     begin
         InitializeClients(APIClient, OAuthClient);
         if not EmailOutlookAccount.Get(AccountId) then
@@ -248,11 +263,9 @@ codeunit 4509 "Email - Outlook API Helper"
 
     procedure Send(EmailMessage: Codeunit "Email Message")
     var
-        APIClient: interface "Email - Outlook API Client";
-        OAuthClient: interface "Email - OAuth Client";
-
-        [NonDebuggable]
-        AccessToken: Text;
+        APIClient: interface "Email - Outlook API Client v2";
+        OAuthClient: interface "Email - OAuth Client v2";
+        AccessToken: SecretText;
     begin
         InitializeClients(APIClient, OAuthClient);
 
@@ -260,8 +273,16 @@ codeunit 4509 "Email - Outlook API Helper"
         APIClient.SendEmail(AccessToken, EmailMessageToJson(EmailMessage));
     end;
 
+
+#if not CLEAN24
     [InternalEvent(false)]
     local procedure OnAfterInitializeClients(var OutlookAPIClient: interface "Email - Outlook API Client"; var OAuthClient: interface "Email - OAuth Client")
+    begin
+    end;
+#endif
+
+    [InternalEvent(false)]
+    local procedure OnAfterInitializeClientsV2(var OutlookAPIClient: interface "Email - Outlook API Client v2"; var OAuthClient: interface "Email - OAuth Client v2")
     begin
     end;
 

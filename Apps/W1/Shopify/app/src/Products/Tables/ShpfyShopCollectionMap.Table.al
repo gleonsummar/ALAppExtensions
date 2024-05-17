@@ -1,3 +1,10 @@
+namespace Microsoft.Integration.Shopify;
+
+using Microsoft.Finance.SalesTax;
+using System.IO;
+using Microsoft.Inventory.Item;
+using Microsoft.Finance.VAT.Setup;
+
 /// <summary>
 /// Table Shpfy Shop Collection Map (ID 30128).
 /// </summary>
@@ -47,7 +54,7 @@ table 30128 "Shpfy Shop Collection Map"
             TableRelation = if ("Product Collection" = const("Tax Group")) "Tax Group".Code else
             if ("Product Collection" = const("VAT Prod. Posting Group")) "VAT Product Posting Group".Code;
         }
-#pragma warning restore AS0086
+#pragma warning disable AS0086
         field(5; "Collection Id"; BigInteger)
         {
             Caption = 'Collection Id';
@@ -68,13 +75,8 @@ table 30128 "Shpfy Shop Collection Map"
             ValidateTableRelation = true;
             DataClassification = CustomerContent;
             ObsoleteReason = 'Replaced by Item Templ. Code';
-#if not CLEAN22
-            ObsoleteState = Pending;
-            ObsoleteTag = '22.0';
-#else
             ObsoleteState = Removed;
             ObsoleteTag = '25.0';
-#endif
         }
 
         field(8; "Default for Export"; Boolean)

@@ -1,3 +1,9 @@
+// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Inventory.Intrastat;
+
 page 4810 "Intrastat Report Setup"
 {
     ApplicationArea = BasicEU, BasicCH, BasicNO;
@@ -23,6 +29,11 @@ page 4810 "Intrastat Report Setup"
                 {
                     ApplicationArea = BasicEU, BasicCH, BasicNO;
                     ToolTip = 'Specifies that you must include shipments of dispatched items in Intrastat reports.';
+                }
+                field("Include Drop Shipment"; Rec."Include Drop Shipment")
+                {
+                    ApplicationArea = BasicEU, BasicCH, BasicNO;
+                    ToolTip = 'Specifies if drop shipment transactions are included in Intrastat reports.';
                 }
                 field("Shipments Based On"; Rec."Shipments Based On")
                 {
@@ -181,26 +192,23 @@ page 4810 "Intrastat Report Setup"
                 RunObject = Page "Intrastat Report Checklist";
                 ToolTip = 'View and edit fields to be verified by the Intrastat check.';
             }
+            action(ImportDefaultDataExchangeDef)
+            {
+                ApplicationArea = BasicEU, BasicNO, BasicCH;
+                Caption = 'Create Default Data Exch. Def.';
+                Image = Create;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                PromotedOnly = true;
+                ToolTip = 'Create/Restore Default Data Exchange Definition(-s)';
+                trigger OnAction()
+                var
+                    IntrastatReportMgt: Codeunit IntrastatReportManagement;
+                begin
+                    IntrastatReportMgt.ReCreateDefaultDataExchangeDef();
+                end;
+            }
         }
     }
-
-#if not CLEAN22
-    trigger OnOpenPage()
-    var
-        IntrastatReportMgt: Codeunit IntrastatReportManagement;
-        ApplicationAreaMgmt: Codeunit "Application Area Mgmt.";
-    begin
-        if not IntrastatReportMgt.IsFeatureEnabled() then begin
-            IntrastatReportMgt.ShowNotEnabledMessage(CurrPage.Caption);
-            if ApplicationAreaMgmt.IsBasicCountryEnabled('EU') then
-                Page.Run(Page::"Intrastat Setup")
-            else
-                Page.Run(page::"Feature Management");
-            Error('');
-        end;
-
-        if not Rec.Get() then
-            Rec.Insert();
-    end;
-#endif
 }

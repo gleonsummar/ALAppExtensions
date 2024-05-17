@@ -47,20 +47,10 @@ codeunit 139603 "Shpfy Product Init Test"
     var
         Shop: Record "Shpfy Shop";
         InitializeTest: Codeunit "Shpfy Initialize Test";
-#if not CLEAN22
-        ShpfyTemplates: Codeunit "Shpfy Templates";
-#endif
         ItemTemplateCode: Code[20];
     begin
         Shop := InitializeTest.CreateShop();
-#if not CLEAN22
-        if not ShpfyTemplates.NewTemplatesEnabled() then
-            ItemTemplateCode := Shop."Item Template Code"
-        else
-            ItemTemplateCode := Shop."Item Templ. Code";
-#else
         ItemTemplateCode := Shop."Item Templ. Code";
-#endif
         exit(CreateItem(ItemTemplateCode, Any.DecimalInRange(10, 100, 2), Any.DecimalInRange(100, 500, 2), WithVariants));
     end;
 
@@ -71,41 +61,18 @@ codeunit 139603 "Shpfy Product Init Test"
 
     internal procedure CreateItem(TemplateCode: code[20]; InitUnitCost: Decimal; InitPrice: Decimal; WithVariants: Boolean) Item: Record Item
     var
-#if not CLEAN22
-        ConfigTemplateHeader: Record "Config. Template Header";
-#endif
         ItemTempl: Record "Item Templ.";
         ItemVendor: Record "Item Vendor";
-#if not CLEAN22
-        ConfigTemplateManagement: Codeunit "Config. Template Management";
-        ShpfyTemplates: Codeunit "Shpfy Templates";
-#endif
         ItemReferenceMgt: Codeunit "Shpfy Item Reference Mgt.";
         ItemTemplMgt: Codeunit "Item Templ. Mgt.";
-#if not CLEAN22
-        RecordRef: RecordRef;
-#endif
         Index: Integer;
     begin
         Any.SetDefaultSeed();
         Item.Init();
         Item."No." := Any.AlphabeticText(MaxStrLen(Item."No."));
         Item.Insert(true);
-#if not CLEAN22
-        if not ShpfyTemplates.NewTemplatesEnabled() then begin
-            RecordRef.GetTable(Item);
-            ConfigTemplateHeader.Get(TemplateCode);
-            ConfigTemplateManagement.UpdateRecord(ConfigTemplateHeader, RecordRef);
-            RecordRef.SetTable(Item);
-        end
-        else begin
-            ItemTempl.Get(TemplateCode);
-            ItemTemplMgt.ApplyItemTemplate(Item, ItemTempl);
-        end;
-#else
         ItemTempl.Get(TemplateCode);
         ItemTemplMgt.ApplyItemTemplate(Item, ItemTempl);
-#endif
         Item.Validate("Price/Profit Calculation", Enum::"Item Price Profit Calculation"::"Profit=Price-Cost");
         Item.Validate("Unit Price", InitPrice);
         Item.Validate("Unit Cost", InitUnitCost);
@@ -209,7 +176,8 @@ codeunit 139603 "Shpfy Product Init Test"
         ItemAttributeValue.Insert();
     end;
 
-#if not CLEAN21
+
+#if not CLEAN23
     internal procedure CreateSalesPrice(Code: Code[10]; ItemNo: Code[20]; Price: Decimal)
     var
         CustomerPriceGroup: Record "Customer Price Group";
@@ -242,6 +210,30 @@ codeunit 139603 "Shpfy Product Init Test"
         SalesLineDiscount."Sales Code" := CustDiscGrp.Code;
         SalesLineDiscount.Validate("Line Discount %", DiscountPerc);
         SalesLineDiscount.Insert();
+    end;
+#else
+    internal procedure CreatePriceList(Code: Code[10]; ItemNo: Code[20]; Price: Decimal; DiscountPerc: Decimal) CustDiscGrp: Record "Customer Discount Group"
+    var
+        CustomerPriceGroup: Record "Customer Price Group";
+        PriceListLine: Record "Price List Line";
+    begin
+        CustomerPriceGroup.Init();
+        CustomerPriceGroup.Code := Code;
+        CustomerPriceGroup."Allow Line Disc." := true;
+        CustomerPriceGroup.Insert();
+
+        CustDiscGrp.Init();
+        CustDiscGrp.Code := Code;
+        CustDiscGrp.Insert();
+
+        PriceListLine.Init();
+        PriceListLine."Asset Type" := PriceListLine."Asset Type"::Item;
+        PriceListLine."Product No." := ItemNo;
+        PriceListLine."Unit Price" := Price;
+        PriceListLine."Source Type" := PriceListLine."Source Type"::"Customer Disc. Group";
+        PriceListLine."Source No." := CustDiscGrp.Code;
+        PriceListLine.Validate("Line Discount %", DiscountPerc);
+        PriceListLine.Insert();
     end;
 #endif
 
@@ -301,7 +293,6 @@ codeunit 139603 "Shpfy Product Init Test"
     end;
 
     local procedure CreateSKUValue(Shop: Record "Shpfy Shop"): Text[50]
-    var
     begin
         case Shop."SKU Mapping" of
             "Shpfy SKU Mapping"::" ":
@@ -340,7 +331,7 @@ codeunit 139603 "Shpfy Product Init Test"
             ShopifyProduct.Vendor := Vendor.Name;
     end;
 
-    local procedure GetShopifyVariantId(): BigInteger
+    internal procedure GetShopifyVariantId(): BigInteger
     var
         ShopifyVariant: Record "Shpfy Variant";
     begin

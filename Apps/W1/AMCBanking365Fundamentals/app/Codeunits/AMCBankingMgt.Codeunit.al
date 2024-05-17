@@ -1,3 +1,22 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Bank.Payment;
+
+using Microsoft.Bank.BankAccount;
+using Microsoft.Bank.Setup;
+using Microsoft.Foundation.Company;
+using Microsoft.Foundation.NoSeries;
+using Microsoft.Utilities;
+using System.Azure.Identity;
+using System.DataAdministration;
+using System.Environment;
+using System.Environment.Configuration;
+using System.IO;
+using System.Reflection;
+using System.Utilities;
+
 codeunit 20105 "AMC Banking Mgt."
 {
     Permissions = TableData "AMC Banking Setup" = r;
@@ -115,7 +134,6 @@ codeunit 20105 "AMC Banking Mgt."
     end;
 
     procedure IsSolutionSandbox(AMCBankingSetup: Record "AMC Banking Setup"): Boolean
-    var
     begin
         if ((UpperCase(AMCBankingSetup.Solution) <> UpperCase(GetEnterPriseSolutionCode())) and
             (EnvironmentInformation.IsSandbox()) and (not IsLicenseEqualAMC())) then
@@ -171,12 +189,7 @@ codeunit 20105 "AMC Banking Mgt."
     end;
 
     [EventSubscriber(ObjectType::Table, Database::"Service Connection", 'OnRegisterServiceConnection', '', false, false)]
-#if not CLEAN20
-    [Obsolete('This method will change to local', '20.0')]
-    procedure HandleBankDataConvRegisterServiceConnection(var ServiceConnection: Record "Service Connection")
-#else
     local procedure HandleBankDataConvRegisterServiceConnection(var ServiceConnection: Record "Service Connection")
-#endif
     var
         AMCBankingSetup: Record "AMC Banking Setup";
         RecordRef: RecordRef;
@@ -235,7 +248,6 @@ codeunit 20105 "AMC Banking Mgt."
     // To substitute code in Codeunit 2 "Company-Initialize"
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Company-Initialize", 'OnCompanyInitialize', '', false, false)]
     local procedure AMCBankOnCompanyInitialize();
-    var
     begin
         AMCBankInitializeBaseData();
         InitBankDataConvServiceSetup();
@@ -607,7 +619,6 @@ codeunit 20105 "AMC Banking Mgt."
     end;
 
     internal procedure updateValue(var fieldref: FieldRef; ValueVariant: Variant; UseValidate: Boolean)
-    var
     begin
         if (UseValidate) then
             fieldref.Validate(ValueVariant)
@@ -649,7 +660,6 @@ codeunit 20105 "AMC Banking Mgt."
     end;
 
     internal procedure GetBankFileName(BankAccount: Record "Bank Account"): Text[250]
-    var
     begin
 
         if (BankAccount."AMC Bank File Name" <> '') then begin
@@ -663,7 +673,6 @@ codeunit 20105 "AMC Banking Mgt."
     end;
 
     internal procedure AMCTenantId(): Text
-    var
     begin
         Exit(CopyStr('fb79e895-7de3-4468-8184-cd181eb8b131', 1, 40));
     end;

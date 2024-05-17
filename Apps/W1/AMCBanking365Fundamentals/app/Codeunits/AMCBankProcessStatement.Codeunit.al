@@ -1,3 +1,12 @@
+﻿// ------------------------------------------------------------------------------------------------
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+// ------------------------------------------------------------------------------------------------
+namespace Microsoft.Bank.Payment;
+
+using Microsoft.Bank.Reconciliation;
+using System.IO;
+
 codeunit 20126 "AMC Bank Process Statement"
 {
     Permissions = TableData "Data Exch." = rimd;
@@ -179,7 +188,6 @@ codeunit 20126 "AMC Bank Process Statement"
     end;
 
     local procedure getNextLevels(var ElementXMLBuffer: Record "XML Buffer"; NextLevelName: Text; ParentEntryNo: Integer)
-    var
     begin
         ElementXMLBuffer.Reset();
         ElementXMLBuffer.SetRange("Parent Entry No.", ParentEntryNo);
@@ -332,7 +340,6 @@ codeunit 20126 "AMC Bank Process Statement"
     end;
 
     local procedure getChildsParentEntryNo(var ElementXMLBuffer: Record "XML Buffer"; ElementName: Text; ParentEntryNo: Integer): Integer
-    var
     begin
         ElementXMLBuffer.Reset();
         ElementXMLBuffer.SetRange("Parent Entry No.", ParentEntryNo);
@@ -346,7 +353,6 @@ codeunit 20126 "AMC Bank Process Statement"
     end;
 
     local procedure getChildsValue(var ElementXMLBuffer: Record "XML Buffer"; ElementName: Text; ParentEntryNo: Integer): Text
-    var
     begin
         ElementXMLBuffer.Reset();
         ElementXMLBuffer.SetRange("Parent Entry No.", ParentEntryNo);
